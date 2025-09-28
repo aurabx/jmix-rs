@@ -1,0 +1,24 @@
+{
+  "audit": [
+    {
+      "event": "created",
+      "by": {
+        "id": "org:test.health.123",
+        "name": "Test Healthcare Organization"
+      },
+      "timestamp": "2024-01-15T14:30:00Z"
+    },
+    {
+      "event": "transmitted",
+      "by": {
+        "id": "doc:jane.smith",
+        "name": "Dr. Jane Smith"
+      },
+      "to": {
+        "id": "org:receiver.clinic",
+        "name": "Receiving Clinic"
+      },
+      "timestamp": "2024-01-15T14:31:00Z"
+    }
+  ]
+}

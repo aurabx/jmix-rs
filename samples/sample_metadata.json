@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2024-01-15T14:30:00Z",
+  "patient": {
+    "id": "PAT12345",
+    "name": {
+      "family": "Doe",
+      "given": ["John", "Michael"],
+      "text": "John Michael Doe"
+    },
+    "dob": "1985-03-15",
+    "sex": "M",
+    "identifiers": [
+      {
+        "system": "http://ns.electronichealth.net.au/id/hi/ihi/1.0",
+        "value": "8003608166690503"
+      }
+    ],
+    "verification": {
+      "verified_by": "government-system",
+      "verified_on": "2024-01-15"
+    }
+  },
+  "report": {
+    "file": "files/radiology-report.pdf"
+  },
+  "studies": {
+    "study_description": "CT Pulmonary Angiogram",
+    "study_uid": "1.2.3.4.5.6.7.8.9.10.11.12.13.14.15",
+    "series": [
+      {
+        "series_uid": "1.2.3.4.5.6.7.8.9.10.11.12.13.14.16",
+        "modality": "CT",
+        "body_part": "CHEST",
+        "instance_count": 150
+      },
+      {
+        "series_uid": "1.2.3.4.5.6.7.8.9.10.11.12.13.14.17", 
+        "modality": "CT",
+        "body_part": "CHEST",
+        "instance_count": 75
+      }
+    ]
+  },
+  "extensions": {
+    "custom_tags": ["radiology", "urgent"],
+    "consent": {
+      "status": "granted",
+      "scope": ["treatment", "research"],
+      "method": "digital-signature",
+      "signed_on": "2024-01-15"
+    },
+    "deid": {
+      "keys": ["PatientName", "PatientID"]
+    }
+  }
+}

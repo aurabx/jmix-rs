@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "sender": {
+    "name": "Test Healthcare Organization",
+    "id": "org:test.health.123", 
+    "contact": "sender@test-health.org"
+  },
+  "requester": {
+    "name": "Dr. Jane Smith",
+    "id": "doc:jane.smith",
+    "contact": {
+      "system": "email",
+      "value": "jane.smith@test-clinic.org"
+    }
+  },
+  "receivers": [
+    {
+      "name": "Receiving Clinic",
+      "id": "org:receiver.clinic",
+      "contact": {
+        "system": "phone",
+        "value": "+61-2-9999-8888"
+      }
+    }
+  ],
+  "patient": {
+    "name": "John Doe",
+    "id": "PAT12345",
+    "dob": "1985-03-15",
+    "sex": "M",
+    "identifiers": [
+      {
+        "system": "http://ns.electronichealth.net.au/id/hi/ihi/1.0",
+        "value": "8003608166690503",
+        "use_field": "official"
+      }
+    ]
+  },
+  "security": {
+    "classification": "confidential"
+  },
+  "custom_tags": ["radiology", "urgent"],
+  "report": {
+    "file": "files/radiology-report.pdf"
+  },
+  "consent": {
+    "status": "granted",
+    "scope": ["treatment", "research"],
+    "method": "digital-signature"
+  },
+  "deid_keys": ["PatientName", "PatientID"]
+}

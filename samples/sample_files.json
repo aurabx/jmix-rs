@@ -1,0 +1,17 @@
+[
+  {
+    "file": "files/radiology-report.pdf",
+    "hash": "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "size_bytes": 1048576
+  },
+  {
+    "file": "files/images.zip",
+    "hash": "sha256:b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456a1",
+    "size_bytes": 2097152
+  },
+  {
+    "file": "files/additional-notes.txt",
+    "hash": "sha256:c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456a1b2",
+    "size_bytes": 4096
+  }
+]
