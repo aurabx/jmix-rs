@@ -1,6 +1,6 @@
 [package]
 name = "jmix-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Aurabox <hello@aurabox.cloud>"]
 description = "Rust library for JMIX (JSON Medical Interchange) format - secure medical data exchange with cryptographic features"
@@ -32,3 +32,8 @@ tar = "0.4"
 rand = "0.8"
 rand_core = "0.6"
 zeroize = { version = "1.7", features = ["zeroize_derive"] }
+clap = { version = "4.5", features = ["derive"] }
+
+[[bin]]
+name = "runbeam"
+path = "src/bin/runbeam.rs"

@@ -16,6 +16,9 @@ pub mod error;
 pub mod jws;
 pub mod types;
 pub mod validation;
+pub mod package_validation;
+
+pub use package_validation::{validate_package, ValidationOptions, ValidationReport};
 
 // Re-export commonly used types
 pub use config::Config;

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 
 /// Configuration for building JMIX envelopes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,8 +174,7 @@ pub struct ValidationConfig {
 
 impl Default for ValidationConfig {
     fn default() -> Self {
-        Self {
-            schema_path: "../jmix/schemas".to_string(),
-        }
+        let schema_path = env::var("JMIX_SCHEMA_DIR").unwrap_or_else(|_| "../jmix/schemas".to_string());
+        Self { schema_path }
     }
 }

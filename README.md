@@ -7,15 +7,15 @@ A Rust implementation of the JMIX (JSON Medical Interchange) format for secure m
 - DICOM file processing and metadata extraction
 - JSON Schema validation
 - AES-256-GCM encryption with Curve25519 ECDH key exchange
-- JWS digital signatures (Ed25519/RS256)
-- Cryptographic assertions for sender identity verification
+- JWS digital signatures (Ed25519)
+- Cryptographic assertions for sender/requester/receiver identity verification
 - High-level builder API for envelope creation
 
 ## Installation
 
 ```toml
 [dependencies]
-jmix-rs = "0.3.0"
+jmix-rs = "0.2.0"
 ```
 
 ## Usage
@@ -85,6 +85,61 @@ cargo run --example envelope_encryption
 cargo run --example sender_assertions
 ```
 
+## CLI (runbeam)
+
+A small CLI is included to validate JMIX packages.
+
+Build and run:
+
+```bash
+cargo run --bin runbeam -- validate ./tmp/<ENVELOPE_ID>.jmix
+```
+
+Flags:
+- --validate-schema: enable JSON Schema validation (defaults to false)
+- --schema-dir PATH: custom schema directory (default ../jmix/schemas)
+- --verify-assertions: verify sender/requester/receiver assertions if present
+- --key PATH: recipient secret key for decrypting encrypted packages (payload.enc)
+- --json: output a machine-readable JSON report
+
+Examples:
+
+```bash
+# Unencrypted package, no schema checks
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix
+
+# Encrypted package: verify decryption + payload hash using secret key
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix --key ./tmp/keys_encrypted_test/recipient_secret.key
+
+# With schema checks (requires schemas available)
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
+
+# JSON output
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix --json
+```
+
+### Verifying assertions
+
+To verify sender/requester/receiver assertions during validation, add `--verify-assertions`:
+
+```bash
+# Build your envelope with assertions (see examples/sender_assertions.rs for generation)
+# Then validate with assertion checks enabled
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix --verify-assertions
+```
+
+### Decrypting an encrypted package
+
+Extract the contents of `payload.enc` using the recipient's secret key:
+
+```bash
+cargo run --bin runbeam -- decrypt ./tmp/<id>.jmix \
+  --key ./tmp/keys_encrypted_test/recipient_secret.key \
+  --out ./tmp/decrypted
+```
+
+Tip: Temporary and example outputs are written under ./tmp/ by convention.
+
 ## Technical Details
 
 ### DICOM Processing
@@ -116,6 +171,22 @@ Extracted DICOM metadata:
 - **SHA-256**: Cryptographic hashing for fingerprints and integrity
 - **JWS**: JSON Web Signature standard (RFC 7515)
 
+### Payload Hashing
+
+JMIX-RS computes and validates a deterministic payload hash stored in `manifest.security.payload_hash` (format: `sha256:<hex>`):
+
+- Unencrypted packages: The hash is computed over the contents of `payload/` as follows:
+  - Recursively list files under `payload/`
+  - Sort by path relative to `payload/` (Unicode codepoint order)
+  - For each file: update the SHA-256 hasher with `relative/path` (UTF-8), then a single newline byte (`\n`), then the file's raw bytes
+  - The final digest is emitted as `sha256:<hex>`
+
+- Encrypted packages: The payload is first assembled as a `payload.tar` and then encrypted to `payload.enc` using AES-256-GCM with ECDH (Curve25519) and HKDF-SHA256. The payload hash is computed as the SHA-256 over the plaintext `payload.tar` bytes prior to encryption and saved in the manifest. This makes the hash independent of IVs/ephemeral keys and stable across encryptions.
+
+During validation:
+- Unencrypted: the validator recomputes the directory hash and compares it to the manifest value.
+- Encrypted: when a recipient secret key is provided, the validator decrypts `payload.enc`, hashes the plaintext TAR, and compares.
+
 ### Schema Validation
 
 The validation system supports:
@@ -127,11 +198,26 @@ The validation system supports:
 
 To enable schema validation:
 
-1. Ensure schema files exist in `../jmix/schemas/` (or configured path)
-2. Run validation tests:
+1. Ensure schema files exist in `../jmix/schemas/` (or configure a custom directory)
+2. Configure schema discovery (precedence):
+   - CLI flag `--schema-dir <PATH>`
+   - Environment variable `JMIX_SCHEMA_DIR=/absolute/or/relative/path`
+   - Default `../jmix/schemas`
+3. Run validation tests:
    ```bash
+   JMIX_SCHEMA_DIR=../jmix/schemas \
    cargo test test_validate_sample_files_with_schemas -- --ignored
    ```
+
+CLI examples:
+```bash
+# Use a specific schema directory
+cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
+
+# Or via environment variable (no flag needed)
+JMIX_SCHEMA_DIR=../jmix/schemas \
+  cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema
+```
 
 ### Error Handling
 
@@ -174,16 +260,19 @@ cargo test assertion
 
 ```
 src/
-├── lib.rs              # Library root
-├── config.rs           # Configuration types
-├── types.rs            # JMIX core types
-├── builder.rs          # High-level builder API
-├── validation.rs       # JSON Schema validation
-├── dicom.rs            # DICOM file processing
-├── encryption.rs       # AES-256-GCM encryption
-├── jws.rs              # JWS digital signatures
-├── assertion.rs        # Ed25519 identity assertions
-└── error.rs            # Error handling
+├── lib.rs                  # Library root
+├── config.rs               # Configuration types
+├── types.rs                # JMIX core types
+├── builder.rs              # High-level builder API
+├── validation.rs           # JSON Schema validation
+├── dicom.rs                # DICOM file processing
+├── encryption.rs           # AES-256-GCM encryption (ECDH+HKDF)
+├── jws.rs                  # JWS digital signatures
+├── assertion.rs            # Ed25519 identity assertions
+├── package_validation.rs   # Package-level validation API (hash, schema, assertions, decrypt)
+├── bin/
+│   └── runbeam.rs          # CLI: runbeam validate
+└── error.rs                # Error handling
 
 examples/
 ├── build_jmix.rs       # Basic envelope creation

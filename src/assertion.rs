@@ -134,6 +134,27 @@ impl AssertionManager {
         self.create_assertion(entity, manifest, signed_fields, expires_at, key_reference, directory_attestation)
     }
 
+    /// Create a receiver assertion for a specific receiver index
+    pub fn create_receiver_assertion(
+        &self,
+        entity: &Entity,
+        manifest: &Manifest,
+        receiver_index: usize,
+        expires_at: Option<String>,
+        key_reference: Option<String>,
+        directory_attestation: Option<DirectoryAttestation>,
+    ) -> JmixResult<AssertionResult> {
+        // Standard fields to sign for receiver assertion, bound to a specific index in manifest.receiver
+        let signed_fields = vec![
+            format!("receiver.{}.id", receiver_index),
+            format!("receiver.{}.name", receiver_index),
+            "manifest.id".to_string(),
+            "timestamp".to_string(),
+        ];
+
+        self.create_assertion(entity, manifest, signed_fields, expires_at, key_reference, directory_attestation)
+    }
+
     /// Create a custom assertion with specific fields
     pub fn create_custom_assertion(
         &self,
@@ -443,6 +464,41 @@ mod tests {
             _ => panic!("Expected valid assertion"),
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_receiver_assertion_creation_and_verification() -> JmixResult<()> {
+        let manager = AssertionManager::with_generated_key()?;
+        let mut manifest = create_test_manifest();
+        // Ensure there is at least one receiver with Some(name)
+        if manifest.receiver.is_empty() {
+            manifest.receiver.push(create_test_entity());
+        }
+        let idx = 0usize;
+        let receiver = manifest.receiver[idx].clone();
+
+        let result = manager.create_receiver_assertion(
+            &receiver,
+            &manifest,
+            idx,
+            None,
+            None,
+            None,
+        )?;
+
+        assert!(!result.assertion.signature.is_empty());
+        assert!(result.assertion.signed_fields.iter().any(|f| f == &format!("receiver.{}.id", idx)));
+
+        let verification = AssertionManager::verify_assertion(
+            &result.assertion,
+            &manifest.receiver[idx],
+            &manifest,
+        )?;
+        match verification {
+            VerificationResult::Valid { .. } => {},
+            _ => panic!("Expected valid receiver assertion"),
+        }
         Ok(())
     }
 
