@@ -9,6 +9,11 @@ repository = "https://github.com/aurabx/jmix-rust"
 homepage = "https://github.com/aurabx/jmix-rust"
 keywords = ["jmix", "medical", "dicom", "encryption", "healthcare"]
 categories = ["cryptography", "data-structures", "science"]
+exclude = [
+    "samples/*",
+    ".ai/*",
+    "warp.md"
+]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
