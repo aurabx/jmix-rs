@@ -15,7 +15,7 @@ A Rust implementation of the JMIX (JSON Medical Interchange) format for secure m
 
 ```toml
 [dependencies]
-jmix-rs = "0.2.0"
+jmix-rs = "0.3.1"
 ```
 
 ## Usage
