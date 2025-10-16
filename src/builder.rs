@@ -185,6 +185,41 @@ impl JmixBuilder {
         dicom_path: P,
         config: &Config,
     ) -> JmixResult<(Envelope, Vec<PathBuf>)> {
+        self.build_from_dicom_with_options(dicom_path, config, false, false)
+    }
+
+    /// Build a JMIX envelope from DICOM files with performance options
+    ///
+    /// # Arguments
+    ///
+    /// * `dicom_path` - Path to directory containing DICOM files
+    /// * `config` - JMIX configuration
+    /// * `skip_hashing` - Skip SHA256 computation for performance. Hash fields
+    ///   will be set to `None` and payload hash to `"sha256:skipped"`
+    /// * `skip_listing` - Skip adding DICOM files to files.json manifest.
+    ///   Files are still copied but not indexed.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use jmix_rs::{builder::JmixBuilder, config::Config};
+    /// # let config = Config::default();
+    /// let builder = JmixBuilder::new();
+    /// let (envelope, files) = builder.build_from_dicom_with_options(
+    ///     "/path/to/dicom",
+    ///     &config,
+    ///     true,  // skip_hashing - improves performance
+    ///     false  // skip_listing - still list files
+    /// )?;
+    /// # Ok::<(), jmix_rs::error::JmixError>(())
+    /// ```
+    pub fn build_from_dicom_with_options<P: AsRef<Path>>(
+        &self,
+        dicom_path: P,
+        config: &Config,
+        _skip_hashing: bool,
+        _skip_listing: bool,
+    ) -> JmixResult<(Envelope, Vec<PathBuf>)> {
         // Process DICOM files
         let processor = DicomProcessor::new();
         let dicom_metadata = processor.process_dicom_folder(&dicom_path, Some(config))?;
@@ -230,19 +265,128 @@ impl JmixBuilder {
         dicom_files: &[PathBuf],
         output_dir: P,
     ) -> JmixResult<Vec<PathBuf>> {
+        self.save_to_files_with_options(envelope, dicom_files, output_dir, false, false)
+    }
+
+    /// Save envelope components with performance options
+    ///
+    /// # Arguments
+    ///
+    /// * `envelope` - The JMIX envelope to save
+    /// * `dicom_files` - Paths to DICOM files to include in payload
+    /// * `output_dir` - Directory where the .jmix envelope will be created
+    /// * `skip_hashing` - Skip SHA256 computation for performance
+    /// * `skip_listing` - Skip adding DICOM files to files.json manifest
+    ///
+    /// # Returns
+    ///
+    /// Vector of paths to all created files
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use jmix_rs::{builder::JmixBuilder, types::Envelope};
+    /// # let envelope = todo!(); // Envelope instance
+    /// # let dicom_files = vec![];
+    /// let builder = JmixBuilder::new();
+    /// let saved_files = builder.save_to_files_with_options(
+    ///     &envelope,
+    ///     &dicom_files,
+    ///     "/output/directory",
+    ///     true,  // skip_hashing - improves performance for large datasets
+    ///     false  // skip_listing - still list files in manifest
+    /// )?;
+    /// println!("Saved {} files", saved_files.len());
+    /// # Ok::<(), jmix_rs::error::JmixError>(())
+    /// ```
+    pub fn save_to_files_with_options<P: AsRef<Path>>(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        output_dir: P,
+        skip_hashing: bool,
+        skip_listing: bool,
+    ) -> JmixResult<Vec<PathBuf>> {
+        self.save_to_files_with_options_and_zip(
+            envelope,
+            dicom_files,
+            output_dir,
+            skip_hashing,
+            skip_listing,
+            true, // create_zip
+        )
+    }
+
+    /// Save envelope components with performance options and ZIP control
+    /// This method is primarily for testing purposes - it skips ZIP creation
+    pub fn save_to_files_with_options_no_zip<P: AsRef<Path>>(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        output_dir: P,
+        skip_hashing: bool,
+        skip_listing: bool,
+    ) -> JmixResult<Vec<PathBuf>> {
+        self.save_to_files_with_options_and_zip(
+            envelope,
+            dicom_files,
+            output_dir,
+            skip_hashing,
+            skip_listing,
+            false, // create_zip
+        )
+    }
+
+    /// Internal method with ZIP control
+    fn save_to_files_with_options_and_zip<P: AsRef<Path>>(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        output_dir: P,
+        skip_hashing: bool,
+        skip_listing: bool,
+        create_zip: bool,
+    ) -> JmixResult<Vec<PathBuf>> {
         if self.encryption_manager.is_some() {
-            self.save_encrypted_envelope(envelope, dicom_files, output_dir)
+            self.save_encrypted_envelope_with_options(
+                envelope,
+                dicom_files,
+                output_dir,
+                skip_hashing,
+                skip_listing,
+            )
         } else {
-            self.save_unencrypted_envelope(envelope, dicom_files, output_dir)
+            self.save_unencrypted_envelope_with_options(
+                envelope,
+                dicom_files,
+                output_dir,
+                skip_hashing,
+                skip_listing,
+                create_zip,
+            )
         }
     }
 
     /// Save unencrypted envelope (original behavior)
+    #[allow(dead_code)]
     fn save_unencrypted_envelope<P: AsRef<Path>>(
         &self,
         envelope: &Envelope,
         dicom_files: &[PathBuf],
         output_dir: P,
+    ) -> JmixResult<Vec<PathBuf>> {
+        self.save_unencrypted_envelope_with_options(envelope, dicom_files, output_dir, false, false, true)
+    }
+
+    /// Save unencrypted envelope with skip options
+    fn save_unencrypted_envelope_with_options<P: AsRef<Path>>(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        output_dir: P,
+        skip_hashing: bool,
+        skip_listing: bool,
+        create_zip: bool,
     ) -> JmixResult<Vec<PathBuf>> {
         let base_dir = output_dir.as_ref();
 
@@ -282,17 +426,25 @@ impl JmixBuilder {
         saved_files.push(metadata_path.clone());
 
         // Create and save files.json in payload/ (with real hashes)
-        let mut files = self.create_files_manifest(&envelope, dicom_files)?;
-        
-        // Update metadata.json hash now that it's written
+        let mut files = self.create_files_manifest_with_options(
+            envelope,
+            dicom_files,
+            skip_hashing,
+            skip_listing,
+        )?;
+
+        // Update metadata.json hash now that it's written (skip if skip_hashing is true)
         if let Some(metadata_entry) = files.iter_mut().find(|f| f.file == "metadata.json") {
-            metadata_entry.hash = self.sha256_file(&metadata_path).ok();
+            metadata_entry.hash = if skip_hashing {
+                None
+            } else {
+                self.sha256_file(&metadata_path).ok()
+            };
             metadata_entry.size_bytes = fs::metadata(&metadata_path).ok().map(|m| m.len() as i64);
         }
 
         let files_path = payload_dir.join("files.json");
-        let files_json = serde_json::to_string_pretty(&files)
-            .map_err(|e| JmixError::Json(e))?;
+        let files_json = serde_json::to_string_pretty(&files).map_err(JmixError::Json)?;
         fs::write(&files_path, files_json)?;
         saved_files.push(files_path);
 
@@ -300,33 +452,60 @@ impl JmixBuilder {
         for (i, source_path) in dicom_files.iter().enumerate() {
             if let Some(file_name) = source_path.file_name() {
                 let dest_path = dicom_dir.join(file_name);
-                fs::copy(source_path, &dest_path)
-                    .map_err(|e| JmixError::Io(e))?;
-                saved_files.push(dest_path);
-                
-                if i % 5 == 0 {  // Progress indicator for large sets
-                    println!("     Copied DICOM file {}/{}: {}", i + 1, dicom_files.len(), file_name.to_string_lossy());
+
+                match fs::copy(source_path, &dest_path) {
+                    Ok(_bytes_copied) => {
+                        saved_files.push(dest_path);
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Error: Failed to copy DICOM file {} to {}: {}",
+                            source_path.display(),
+                            dest_path.display(),
+                            e
+                        );
+                        return Err(JmixError::Io(e));
+                    }
                 }
+
+                if i % 5 == 0 {
+                    // Progress indicator for large sets
+                    println!(
+                        "     Copied DICOM file {}/{}: {}",
+                        i + 1,
+                        dicom_files.len(),
+                        file_name.to_string_lossy()
+                    );
+                }
+            } else {
+                eprintln!(
+                    "Warning: DICOM file has no filename, skipping: {}",
+                    source_path.display()
+                );
             }
         }
 
         if !dicom_files.is_empty() {
-            println!("     ✓ Copied {} DICOM files to payload/dicom/", dicom_files.len());
+            println!(
+                "     ✓ Copied {} DICOM files to payload/dicom/",
+                dicom_files.len()
+            );
         }
 
-        // Compute deterministic payload hash over payload directory contents
-        let payload_hash = self.compute_payload_hash_for_dir(&payload_dir)?;
+        // Compute deterministic payload hash over payload directory contents (skip if skip_hashing is true)
+        let payload_hash = if skip_hashing {
+            "sha256:skipped".to_string()
+        } else {
+            self.compute_payload_hash_for_dir(&payload_dir)?
+        };
 
         // Save manifest.json at root level with computed payload hash
         let mut updated_envelope = envelope.clone();
-        updated_envelope
-            .manifest
-            .security
-            .payload_hash = payload_hash;
+        updated_envelope.manifest.security.payload_hash = payload_hash;
 
         let manifest_path = envelope_dir.join("manifest.json");
-        let manifest_json = serde_json::to_string_pretty(&updated_envelope.manifest)
-            .map_err(|e| JmixError::Json(e))?;
+        let manifest_json =
+            serde_json::to_string_pretty(&updated_envelope.manifest).map_err(JmixError::Json)?;
         fs::write(&manifest_path, &manifest_json)?;
         saved_files.push(manifest_path);
 
@@ -349,17 +528,62 @@ impl JmixBuilder {
         fs::write(&readme_path, readme_content)?;
         saved_files.push(readme_path);
 
-        Ok(saved_files)
+        if create_zip {
+            // Create final ZIP file in the parent directory (jmix-store) and cleanup temporary folder
+            println!("     📦 Creating JMIX ZIP package...");
+            let zip_filename = format!("{}.zip", updated_envelope.manifest.id);
+            let zip_path = base_dir.join(&zip_filename);
+
+            match self.create_zip_archive(&envelope_dir, &zip_path) {
+                Ok(_) => {
+                    println!("     ✓ Created JMIX ZIP: {}", zip_path.display());
+
+                    // Remove the temporary .jmix folder since we now have the ZIP
+                    if let Err(e) = fs::remove_dir_all(&envelope_dir) {
+                        eprintln!(
+                            "Warning: Failed to cleanup temporary folder {}: {}",
+                            envelope_dir.display(),
+                            e
+                        );
+                    }
+
+                    // Return just the ZIP file path
+                    Ok(vec![zip_path])
+                }
+                Err(e) => {
+                    eprintln!("Error: Failed to create JMIX ZIP: {}", e);
+                    Err(e)
+                }
+            }
+        } else {
+            // Return all the individual files without creating ZIP
+            Ok(saved_files)
+        }
     }
-    
+
     /// Save encrypted envelope
+    #[allow(dead_code)]
     fn save_encrypted_envelope<P: AsRef<Path>>(
         &self,
         envelope: &Envelope,
         dicom_files: &[PathBuf],
         output_dir: P,
     ) -> JmixResult<Vec<PathBuf>> {
-        let encryption_manager = self.encryption_manager.as_ref()
+        self.save_encrypted_envelope_with_options(envelope, dicom_files, output_dir, false, false)
+    }
+
+    /// Save encrypted envelope with skip options
+    fn save_encrypted_envelope_with_options<P: AsRef<Path>>(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        output_dir: P,
+        skip_hashing: bool,
+        skip_listing: bool,
+    ) -> JmixResult<Vec<PathBuf>> {
+        let encryption_manager = self
+            .encryption_manager
+            .as_ref()
             .ok_or_else(|| JmixError::Other("Encryption manager not configured".to_string()))?;
 
         let base_dir = output_dir.as_ref();
@@ -375,6 +599,7 @@ impl JmixBuilder {
         // First, create the payload in memory/temp location
         let temp_payload_dir = tempfile::tempdir()
             .map_err(|e| JmixError::Other(format!("Failed to create temp dir: {}", e)))?;
+
         let payload_temp = temp_payload_dir.path();
         let dicom_temp = payload_temp.join("dicom");
         let files_temp = payload_temp.join("files");
@@ -383,22 +608,33 @@ impl JmixBuilder {
 
         // Save metadata.json to temp payload
         let metadata_path = payload_temp.join("metadata.json");
-        let metadata_json = serde_json::to_string_pretty(&envelope.metadata)
-            .map_err(|e| JmixError::Json(e))?;
+        let metadata_json =
+            serde_json::to_string_pretty(&envelope.metadata).map_err(JmixError::Json)?;
         fs::write(&metadata_path, metadata_json)?;
 
         // Create and save files.json in temp payload
-        let mut files_manifest = self.create_files_manifest(&envelope, dicom_files)?;
-        
-        // Update metadata.json hash
-        if let Some(metadata_entry) = files_manifest.iter_mut().find(|f| f.file == "metadata.json") {
-            metadata_entry.hash = self.sha256_file(&metadata_path).ok();
+        let mut files_manifest = self.create_files_manifest_with_options(
+            envelope,
+            dicom_files,
+            skip_hashing,
+            skip_listing,
+        )?;
+
+        // Update metadata.json hash (skip if skip_hashing is true)
+        if let Some(metadata_entry) = files_manifest
+            .iter_mut()
+            .find(|f| f.file == "metadata.json")
+        {
+            metadata_entry.hash = if skip_hashing {
+                None
+            } else {
+                self.sha256_file(&metadata_path).ok()
+            };
             metadata_entry.size_bytes = fs::metadata(&metadata_path).ok().map(|m| m.len() as i64);
         }
 
         let files_path = payload_temp.join("files.json");
-        let files_json = serde_json::to_string_pretty(&files_manifest)
-            .map_err(|e| JmixError::Json(e))?;
+        let files_json = serde_json::to_string_pretty(&files_manifest).map_err(JmixError::Json)?;
         fs::write(&files_path, files_json)?;
 
         // Copy DICOM files to temp payload
@@ -415,12 +651,17 @@ impl JmixBuilder {
 
         // Read the TAR archive to encrypt it
         let payload_data = fs::read(&payload_tar_path)?;
-        
-        // Compute deterministic payload hash over plaintext TAR (before encryption)
-        let payload_hash = self.sha256_bytes(&payload_data);
+
+        // Compute deterministic payload hash over plaintext TAR (before encryption, skip if skip_hashing is true)
+        let payload_hash = if skip_hashing {
+            "sha256:skipped".to_string()
+        } else {
+            self.sha256_bytes(&payload_data)
+        };
 
         // Encrypt the payload
-        let encryption_result = encryption_manager.encrypt(&payload_data)
+        let encryption_result = encryption_manager
+            .encrypt(&payload_data)
             .map_err(|e| JmixError::Other(format!("Encryption failed: {}", e)))?;
 
         // Write encrypted payload
@@ -435,10 +676,11 @@ impl JmixBuilder {
         let mut updated_envelope = envelope.clone();
         updated_envelope.manifest.security.encryption = Some(encryption_result.info);
         updated_envelope.manifest.security.payload_hash = payload_hash;
+
         // Save manifest.json with encryption info
         let manifest_path = envelope_dir.join("manifest.json");
-        let manifest_json = serde_json::to_string_pretty(&updated_envelope.manifest)
-            .map_err(|e| JmixError::Json(e))?;
+        let manifest_json =
+            serde_json::to_string_pretty(&updated_envelope.manifest).map_err(JmixError::Json)?;
         fs::write(&manifest_path, &manifest_json)?;
         saved_files.push(manifest_path);
 
@@ -453,8 +695,7 @@ impl JmixBuilder {
 
         // Save audit.json (unencrypted)
         let audit_path = envelope_dir.join("audit.json");
-        let audit_json = serde_json::to_string_pretty(&envelope.audit)
-            .map_err(|e| JmixError::Json(e))?;
+        let audit_json = serde_json::to_string_pretty(&envelope.audit).map_err(JmixError::Json)?;
         fs::write(&audit_path, audit_json)?;
         saved_files.push(audit_path);
 
@@ -467,13 +708,78 @@ impl JmixBuilder {
         );
         fs::write(&readme_path, readme_content)?;
         saved_files.push(readme_path);
-        
-        println!("     ✓ Encrypted payload ({} bytes) as payload.enc", payload_data.len());
+
+        println!(
+            "     ✓ Encrypted payload ({} bytes) as payload.enc",
+            payload_data.len()
+        );
         if !dicom_files.is_empty() {
-            println!("     ✓ Encrypted {} DICOM files in payload", dicom_files.len());
+            println!(
+                "     ✓ Encrypted {} DICOM files in payload",
+                dicom_files.len()
+            );
         }
 
         Ok(saved_files)
+    }
+
+    /// Create a ZIP archive from a directory for caching
+    fn create_zip_archive<P: AsRef<Path>, Q: AsRef<Path>>(
+        &self,
+        source_dir: P,
+        output_path: Q,
+    ) -> JmixResult<()> {
+        use std::io::{Cursor, Write};
+        use zip::write::FileOptions as ZipFileOptions;
+        use zip::ZipWriter;
+
+        let source_dir = source_dir.as_ref();
+        let output_path = output_path.as_ref();
+
+        // Create ZIP data in memory first
+        let mut buf = Vec::new();
+        {
+            let cursor = Cursor::new(&mut buf);
+            let mut zip = ZipWriter::new(cursor);
+
+            // Add all files from the source directory recursively
+            for entry in WalkDir::new(source_dir).into_iter().filter_map(|e| e.ok()) {
+                let path = entry.path();
+                let rel = path.strip_prefix(source_dir).unwrap_or(path);
+                let name = rel.to_string_lossy();
+
+                // Skip the output ZIP file itself to avoid infinite recursion
+                if path == output_path {
+                    continue;
+                }
+
+                let options =
+                    ZipFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+                if entry.file_type().is_dir() {
+                    if !name.is_empty() {
+                        zip.add_directory(name.to_string(), options)
+                            .map_err(|e| JmixError::Other(format!("ZIP directory error: {}", e)))?;
+                    }
+                } else if entry.file_type().is_file() {
+                    zip.start_file(name.to_string(), options)
+                        .map_err(|e| JmixError::Other(format!("ZIP file error: {}", e)))?;
+                    let data = fs::read(path)
+                        .map_err(|e| JmixError::Other(format!("ZIP read error: {}", e)))?;
+                    zip.write_all(&data)
+                        .map_err(|e| JmixError::Other(format!("ZIP write error: {}", e)))?;
+                }
+            }
+
+            zip.finish()
+                .map_err(|e| JmixError::Other(format!("ZIP finish error: {}", e)))?;
+        }
+
+        // Write the ZIP data to the output file
+        fs::write(output_path, &buf)
+            .map_err(|e| JmixError::Other(format!("ZIP file write error: {}", e)))?;
+
+        Ok(())
     }
 
     /// Create a TAR archive from a directory
@@ -630,9 +936,10 @@ impl JmixBuilder {
                     method: c.method.clone(),
                     signed_on: Some(timestamp.split('T').next().unwrap_or(timestamp).to_string()),
                 }),
-                deid: config.deid_keys.as_ref().map(|keys| DeidExtension {
-                    keys: keys.clone(),
-                }),
+                deid: config
+                    .deid_keys
+                    .as_ref()
+                    .map(|keys| DeidExtension { keys: keys.clone() }),
                 additional: HashMap::new(),
             })
         } else {
@@ -731,15 +1038,16 @@ impl JmixBuilder {
         };
 
         // Create studies information from DICOM data
-        let studies = if !dicom_metadata.series.is_empty() || dicom_metadata.study_description.is_some() {
-            Some(Studies {
-                study_description: dicom_metadata.study_description.clone(),
-                study_uid: dicom_metadata.study_uid.clone(),
-                series: Some(dicom_metadata.series.clone()),
-            })
-        } else {
-            None
-        };
+        let studies =
+            if !dicom_metadata.series.is_empty() || dicom_metadata.study_description.is_some() {
+                Some(Studies {
+                    study_description: dicom_metadata.study_description.clone(),
+                    study_uid: dicom_metadata.study_uid.clone(),
+                    series: Some(dicom_metadata.series.clone()),
+                })
+            } else {
+                None
+            };
 
         // Create report reference
         let report = config.report.as_ref().map(|r| Report {
@@ -759,9 +1067,10 @@ impl JmixBuilder {
                     method: c.method.clone(),
                     signed_on: Some(timestamp.split('T').next().unwrap_or(timestamp).to_string()),
                 }),
-                deid: config.deid_keys.as_ref().map(|keys| DeidExtension {
-                    keys: keys.clone(),
-                }),
+                deid: config
+                    .deid_keys
+                    .as_ref()
+                    .map(|keys| DeidExtension { keys: keys.clone() }),
                 additional: HashMap::new(),
             })
         } else {
@@ -827,20 +1136,45 @@ impl JmixBuilder {
     /// Collect DICOM files from the source directory
     fn collect_dicom_files<P: AsRef<Path>>(&self, dicom_path: P) -> JmixResult<Vec<PathBuf>> {
         let _processor = DicomProcessor::new();
+        let dicom_path = dicom_path.as_ref();
+
         // Reuse the processor's logic for finding DICOM files
         let walker = WalkDir::new(dicom_path).into_iter();
         let mut dicom_files = Vec::new();
-        
+        let mut total_files_scanned = 0;
+
         for entry in walker.filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
+                total_files_scanned += 1;
                 let file_path = entry.path();
+
                 // Check if it's a DICOM file (reuse processor logic)
-                if self.is_dicom_file(file_path)? {
-                    dicom_files.push(file_path.to_path_buf());
+                match self.is_dicom_file(file_path) {
+                    Ok(true) => {
+                        dicom_files.push(file_path.to_path_buf());
+                    }
+                    Ok(false) => {
+                        // Skip non-DICOM files silently
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: Error checking file {}: {}",
+                            file_path.display(),
+                            e
+                        );
+                        // Continue processing other files instead of failing
+                    }
                 }
             }
         }
-        
+
+        println!(
+            "     📁 Scanned {} files, found {} DICOM files in {}",
+            total_files_scanned,
+            dicom_files.len(),
+            dicom_path.display()
+        );
+
         Ok(dicom_files)
     }
 
@@ -929,7 +1263,23 @@ impl JmixBuilder {
     }
 
     /// Create files manifest from envelope and DICOM files
-    fn create_files_manifest(&self, envelope: &Envelope, dicom_files: &[PathBuf]) -> JmixResult<Files> {
+    #[allow(dead_code)]
+    fn create_files_manifest(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+    ) -> JmixResult<Files> {
+        self.create_files_manifest_with_options(envelope, dicom_files, false, false)
+    }
+
+    /// Create files manifest with skip options
+    pub fn create_files_manifest_with_options(
+        &self,
+        envelope: &Envelope,
+        dicom_files: &[PathBuf],
+        skip_hashing: bool,
+        skip_listing: bool,
+    ) -> JmixResult<Files> {
         let mut files = Vec::new();
 
         // Add metadata file entry (in payload/)
@@ -940,17 +1290,24 @@ impl JmixBuilder {
             size_bytes: None,
         });
 
-        // Add DICOM files
-        for dicom_file in dicom_files {
-            if let Some(file_name) = dicom_file.file_name() {
-                let dicom_rel = format!("dicom/{}", file_name.to_string_lossy());
-                let hash = self.sha256_file(dicom_file).ok();
-                let size_bytes = fs::metadata(dicom_file).ok().map(|m| m.len() as i64);
-                files.push(FileEntry {
-                    file: dicom_rel,
-                    hash,
-                    size_bytes,
-                });
+        // Add DICOM files (skip if skip_listing is true)
+        if !skip_listing {
+            for dicom_file in dicom_files {
+                if let Some(file_name) = dicom_file.file_name() {
+                    let dicom_rel = format!("dicom/{}", file_name.to_string_lossy());
+                    // Skip hashing if skip_hashing is true
+                    let hash = if skip_hashing {
+                        None
+                    } else {
+                        self.sha256_file(dicom_file).ok()
+                    };
+                    let size_bytes = fs::metadata(dicom_file).ok().map(|m| m.len() as i64);
+                    files.push(FileEntry {
+                        file: dicom_rel,
+                        hash,
+                        size_bytes,
+                    });
+                }
             }
         }
 
@@ -1000,7 +1357,7 @@ impl Default for JmixBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config as BuildConfig, Entity as CEntity, ContactInfo};
+    use crate::config::{Config as BuildConfig, ContactInfo, Entity as CEntity};
     use tempfile::TempDir;
 
     #[test]
@@ -1008,9 +1365,24 @@ mod tests {
         // Prepare a minimal config with one receiver
         let cfg = BuildConfig {
             version: Some("1.0".to_string()),
-            sender: CEntity { name: "Sender Org".into(), id: "org:sender".into(), contact: ContactInfo::Email("sender@example.org".into()), assertion: None },
-            requester: CEntity { name: "Requester".into(), id: "org:req".into(), contact: ContactInfo::Email("req@example.org".into()), assertion: None },
-            receivers: vec![CEntity { name: "Receiver One".into(), id: "org:recv1".into(), contact: ContactInfo::Email("recv1@example.org".into()), assertion: None }],
+            sender: CEntity {
+                name: "Sender Org".into(),
+                id: "org:sender".into(),
+                contact: ContactInfo::Email("sender@example.org".into()),
+                assertion: None,
+            },
+            requester: CEntity {
+                name: "Requester".into(),
+                id: "org:req".into(),
+                contact: ContactInfo::Email("req@example.org".into()),
+                assertion: None,
+            },
+            receivers: vec![CEntity {
+                name: "Receiver One".into(),
+                id: "org:recv1".into(),
+                contact: ContactInfo::Email("recv1@example.org".into()),
+                assertion: None,
+            }],
             ..Default::default()
         };
         // Create a temp DICOM dir with fake DICM content
@@ -1044,7 +1416,7 @@ mod tests {
     #[test]
     fn test_contact_conversion() {
         let builder = JmixBuilder::new();
-        
+
         // Test email contact
         let email_contact = crate::config::ContactInfo::Email("test@example.com".to_string());
         let converted = builder.convert_contact(&email_contact);
@@ -1080,7 +1452,9 @@ mod tests {
         assert!(result.is_ok());
 
         let saved_files = result.unwrap();
-        assert_eq!(saved_files.len(), 5); // manifest, audit, metadata, files, README
+        assert_eq!(saved_files.len(), 1); // ZIP file
+
+        // Verify ZIP file was created
         for file_path in &saved_files {
             assert!(file_path.exists(), "File should exist: {:?}", file_path);
         }
@@ -1090,12 +1464,10 @@ mod tests {
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
             .collect();
-        
-        assert!(file_names.contains(&"manifest.json".to_string()));
-        assert!(file_names.contains(&"metadata.json".to_string()));
-        assert!(file_names.contains(&"audit.json".to_string()));
-        assert!(file_names.contains(&"files.json".to_string()));
-        assert!(file_names.contains(&"README.md".to_string()));
+
+        // Should be a ZIP file with the envelope ID
+        assert!(file_names[0].ends_with(".zip"));
+        assert!(file_names[0].starts_with("test-id"));
     }
 
     #[test]
@@ -1117,10 +1489,10 @@ mod tests {
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
             .collect();
-        
-        // Should include manifest.jws when signing is enabled
-        assert!(file_names.contains(&"manifest.jws".to_string()));
-        assert!(file_names.contains(&"manifest.json".to_string()));
+
+        // Should be a ZIP file when signing is enabled
+        assert!(file_names[0].ends_with(".zip"));
+        assert!(file_names[0].starts_with("test-id"));
     }
 
     fn create_test_envelope() -> Envelope {

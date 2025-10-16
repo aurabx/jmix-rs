@@ -6,6 +6,22 @@
 //! - JSON Schema validation
 //! - DICOM metadata extraction
 //! - Envelope creation and processing
+//! - Performance optimization through skip flags
+//!
+//! ## Performance Optimization
+//!
+//! The library supports two performance flags for large datasets:
+//!
+//! - `skip_hashing`: Skips SHA256 hash computation for files and payload.
+//!   When enabled, hash fields are set to `None` and payload hash is set to
+//!   `"sha256:skipped"` placeholder.
+//!
+//! - `skip_listing`: Skips adding DICOM files to the files.json manifest.
+//!   Files are still copied to the payload but not indexed. Only metadata.json
+//!   and report files (if present) are listed.
+//!
+//! These flags can significantly improve performance when processing large
+//! DICOM datasets where hash verification or file indexing is not required.
 
 pub mod assertion;
 pub mod builder;

@@ -1,4 +1,6 @@
-use jmix_rs::{builder::JmixBuilder, config::Config, encryption::KeyPair, validate_package, ValidationOptions};
+use jmix_rs::{
+    builder::JmixBuilder, config::Config, encryption::KeyPair, validate_package, ValidationOptions,
+};
 use std::{fs, path::PathBuf};
 
 #[test]
@@ -14,22 +16,29 @@ fn validate_encrypted_package_roundtrip() {
     let kp = KeyPair::generate();
     let secret_path = keys_dir.join("recipient_secret.key");
     let public_path = keys_dir.join("recipient_public.key");
-    kp.save_to_files(&secret_path, &public_path).expect("save keys");
+    kp.save_to_files(&secret_path, &public_path)
+        .expect("save keys");
 
     // Minimal config
     let cfg = Config::default();
 
     // Build encrypted envelope
     let recipient_public_b64 = kp.public_key_base64();
-    let builder = JmixBuilder::with_encryption_and_signing(&recipient_public_b64).expect("builder with enc");
+    let builder =
+        JmixBuilder::with_encryption_and_signing(&recipient_public_b64).expect("builder with enc");
 
     // Create small DICOM dir
     let dicom_dir = base_out.join("unit_test_dicom_enc");
     let _ = fs::create_dir_all(&dicom_dir);
-    let _ = fs::write(dicom_dir.join("image_001.dcm"), b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM");
+    let _ = fs::write(
+        dicom_dir.join("image_001.dcm"),
+        b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM",
+    );
 
     let (envelope, dicom_files) = builder.build_from_dicom(&dicom_dir, &cfg).expect("build");
-    let _saved = builder.save_to_files(&envelope, &dicom_files, &base_out).expect("save");
+    let _saved = builder
+        .save_to_files(&envelope, &dicom_files, &base_out)
+        .expect("save");
 
     // Envelope dir
     let env_dir = base_out.join(format!("{}.jmix", envelope.manifest.id));
@@ -64,21 +73,29 @@ fn validate_encrypted_wrong_key_fails() {
     let _ = fs::create_dir_all(&keys_dir);
     let secret_wrong = keys_dir.join("wrong_secret.key");
     let public_good = keys_dir.join("good_public.key");
-    kp_wrong.save_to_files(&secret_wrong, &keys_dir.join("wrong_public.key")).expect("save wrong");
+    kp_wrong
+        .save_to_files(&secret_wrong, &keys_dir.join("wrong_public.key"))
+        .expect("save wrong");
     // Save good public to satisfy API (not strictly needed for validate)
     std::fs::File::create(&public_good).expect("touch");
 
     // Build encrypted envelope with good public key
     let recipient_public_b64 = kp_good.public_key_base64();
-    let builder = JmixBuilder::with_encryption_and_signing(&recipient_public_b64).expect("builder with enc");
+    let builder =
+        JmixBuilder::with_encryption_and_signing(&recipient_public_b64).expect("builder with enc");
 
     let dicom_dir = base_out.join("unit_test_dicom_wrongkey");
     let _ = fs::create_dir_all(&dicom_dir);
-    let _ = fs::write(dicom_dir.join("image_001.dcm"), b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM");
+    let _ = fs::write(
+        dicom_dir.join("image_001.dcm"),
+        b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM",
+    );
 
     let cfg = Config::default();
     let (envelope, dicom_files) = builder.build_from_dicom(&dicom_dir, &cfg).expect("build");
-    let _saved = builder.save_to_files(&envelope, &dicom_files, &base_out).expect("save");
+    let _saved = builder
+        .save_to_files(&envelope, &dicom_files, &base_out)
+        .expect("save");
 
     let env_dir = base_out.join(format!("{}.jmix", envelope.manifest.id));
 
