@@ -12,7 +12,7 @@ use std::path::Path;
 pub struct JwsHeader {
     /// Algorithm - always "EdDSA" for Ed25519
     pub alg: String,
-    /// Type - always "JWS" 
+    /// Type - always "JWS"
     pub typ: String,
     /// Curve - "Ed25519" for our implementation
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,9 +37,7 @@ pub struct JwsManager {
 impl JwsManager {
     /// Create a new JWS manager without a signing key
     pub fn new() -> Self {
-        Self {
-            signing_key: None,
-        }
+        Self { signing_key: None }
     }
 
     /// Create a new JWS manager with a generated signing key
@@ -54,23 +52,22 @@ impl JwsManager {
 
     /// Create a JWS manager with a signing key loaded from file
     pub fn with_key_file<P: AsRef<Path>>(key_path: P) -> JmixResult<Self> {
-        let key_bytes = fs::read(key_path.as_ref())
-            .map_err(|e| JmixError::Io(e))?;
-        
+        let key_bytes = fs::read(key_path.as_ref()).map_err(|e| JmixError::Io(e))?;
+
         if key_bytes.len() != 32 {
             return Err(JmixError::Cryptography(
-                crate::error::CryptographyError::InvalidKey(
-                    format!("Ed25519 private key must be 32 bytes, got {}", key_bytes.len())
-                )
+                crate::error::CryptographyError::InvalidKey(format!(
+                    "Ed25519 private key must be 32 bytes, got {}",
+                    key_bytes.len()
+                )),
             ));
         }
 
-        let key_array: [u8; 32] = key_bytes.try_into()
-            .map_err(|_| JmixError::Cryptography(
-                crate::error::CryptographyError::InvalidKey(
-                    "Failed to convert key bytes to array".to_string()
-                )
-            ))?;
+        let key_array: [u8; 32] = key_bytes.try_into().map_err(|_| {
+            JmixError::Cryptography(crate::error::CryptographyError::InvalidKey(
+                "Failed to convert key bytes to array".to_string(),
+            ))
+        })?;
 
         let signing_key = SigningKey::from_bytes(&key_array);
         Ok(Self {
@@ -97,12 +94,10 @@ impl JwsManager {
         let verifying_key = signing_key.verifying_key();
 
         // Save private key (32 bytes)
-        fs::write(&private_key_path, signing_key.to_bytes())
-            .map_err(|e| JmixError::Io(e))?;
+        fs::write(&private_key_path, signing_key.to_bytes()).map_err(|e| JmixError::Io(e))?;
 
-        // Save public key (32 bytes) 
-        fs::write(&public_key_path, verifying_key.to_bytes())
-            .map_err(|e| JmixError::Io(e))?;
+        // Save public key (32 bytes)
+        fs::write(&public_key_path, verifying_key.to_bytes()).map_err(|e| JmixError::Io(e))?;
 
         println!("Generated Ed25519 keypair:");
         println!("  Private key: {}", private_key_path.as_ref().display());
@@ -128,12 +123,11 @@ impl JwsManager {
 
     /// Sign raw data and return the signature bytes
     pub fn sign_data(&self, data: &[u8]) -> JmixResult<Vec<u8>> {
-        let signing_key = self.signing_key.as_ref()
-            .ok_or_else(|| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsCreation(
-                    "No signing key loaded".to_string()
-                )
-            ))?;
+        let signing_key = self.signing_key.as_ref().ok_or_else(|| {
+            JmixError::Cryptography(crate::error::CryptographyError::JwsCreation(
+                "No signing key loaded".to_string(),
+            ))
+        })?;
 
         let signature = signing_key.sign(data);
         Ok(signature.to_bytes().to_vec())
@@ -141,29 +135,27 @@ impl JwsManager {
 
     /// Sign a JSON payload and return JWS compact serialization
     pub fn sign_json(&self, payload: &str) -> JmixResult<String> {
-        let signing_key = self.signing_key.as_ref()
-            .ok_or_else(|| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsCreation(
-                    "No signing key loaded".to_string()
-                )
-            ))?;
+        let signing_key = self.signing_key.as_ref().ok_or_else(|| {
+            JmixError::Cryptography(crate::error::CryptographyError::JwsCreation(
+                "No signing key loaded".to_string(),
+            ))
+        })?;
 
         let header = JwsHeader::default();
-        let header_json = serde_json::to_string(&header)
-            .map_err(|e| JmixError::Json(e))?;
+        let header_json = serde_json::to_string(&header).map_err(|e| JmixError::Json(e))?;
 
         // Create JWS signing input: base64url(header) + "." + base64url(payload)
-        let header_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(header_json.as_bytes());
-        let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(payload.as_bytes());
-        
+        let header_b64 =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_json.as_bytes());
+        let payload_b64 =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.as_bytes());
+
         let signing_input = format!("{}.{}", header_b64, payload_b64);
 
         // Sign the input
         let signature = signing_key.sign(signing_input.as_bytes());
-        let signature_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(signature.to_bytes());
+        let signature_b64 =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature.to_bytes());
 
         // Return JWS compact serialization
         Ok(format!("{}.{}", signing_input, signature_b64))
@@ -175,8 +167,8 @@ impl JwsManager {
         if parts.len() != 3 {
             return Err(JmixError::Cryptography(
                 crate::error::CryptographyError::JwsVerification(
-                    "Invalid JWS format - expected 3 parts".to_string()
-                )
+                    "Invalid JWS format - expected 3 parts".to_string(),
+                ),
             ));
         }
 
@@ -190,17 +182,19 @@ impl JwsManager {
         // Decode and verify signature
         let signature_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .decode(signature_b64)
-            .map_err(|e| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsVerification(
-                    format!("Invalid base64 signature: {}", e)
-                )
-            ))?;
+            .map_err(|e| {
+                JmixError::Cryptography(crate::error::CryptographyError::JwsVerification(format!(
+                    "Invalid base64 signature: {}",
+                    e
+                )))
+            })?;
 
         if signature_bytes.len() != 64 {
             return Err(JmixError::Cryptography(
-                crate::error::CryptographyError::JwsVerification(
-                    format!("Invalid signature length: expected 64 bytes, got {}", signature_bytes.len())
-                )
+                crate::error::CryptographyError::JwsVerification(format!(
+                    "Invalid signature length: expected 64 bytes, got {}",
+                    signature_bytes.len()
+                )),
             ));
         }
 
@@ -209,55 +203,56 @@ impl JwsManager {
         // Verify signature
         verifying_key
             .verify(signing_input.as_bytes(), &signature)
-            .map_err(|e| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsVerification(
-                    format!("Signature verification failed: {}", e)
-                )
-            ))?;
+            .map_err(|e| {
+                JmixError::Cryptography(crate::error::CryptographyError::JwsVerification(format!(
+                    "Signature verification failed: {}",
+                    e
+                )))
+            })?;
 
         // Decode and return payload
         let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .decode(payload_b64)
-            .map_err(|e| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsVerification(
-                    format!("Invalid base64 payload: {}", e)
-                )
-            ))?;
+            .map_err(|e| {
+                JmixError::Cryptography(crate::error::CryptographyError::JwsVerification(format!(
+                    "Invalid base64 payload: {}",
+                    e
+                )))
+            })?;
 
-        String::from_utf8(payload_bytes)
-            .map_err(|e| JmixError::Cryptography(
-                crate::error::CryptographyError::JwsVerification(
-                    format!("Invalid UTF-8 in payload: {}", e)
-                )
-            ))
+        String::from_utf8(payload_bytes).map_err(|e| {
+            JmixError::Cryptography(crate::error::CryptographyError::JwsVerification(format!(
+                "Invalid UTF-8 in payload: {}",
+                e
+            )))
+        })
     }
 
     /// Load a public key from file for verification
     pub fn load_public_key<P: AsRef<Path>>(public_key_path: P) -> JmixResult<VerifyingKey> {
-        let key_bytes = fs::read(public_key_path.as_ref())
-            .map_err(|e| JmixError::Io(e))?;
-        
+        let key_bytes = fs::read(public_key_path.as_ref()).map_err(|e| JmixError::Io(e))?;
+
         if key_bytes.len() != 32 {
             return Err(JmixError::Cryptography(
-                crate::error::CryptographyError::InvalidKey(
-                    format!("Ed25519 public key must be 32 bytes, got {}", key_bytes.len())
-                )
+                crate::error::CryptographyError::InvalidKey(format!(
+                    "Ed25519 public key must be 32 bytes, got {}",
+                    key_bytes.len()
+                )),
             ));
         }
 
-        let key_array: [u8; 32] = key_bytes.try_into()
-            .map_err(|_| JmixError::Cryptography(
-                crate::error::CryptographyError::InvalidKey(
-                    "Failed to convert public key bytes to array".to_string()
-                )
-            ))?;
+        let key_array: [u8; 32] = key_bytes.try_into().map_err(|_| {
+            JmixError::Cryptography(crate::error::CryptographyError::InvalidKey(
+                "Failed to convert public key bytes to array".to_string(),
+            ))
+        })?;
 
-        Ok(VerifyingKey::from_bytes(&key_array)
-            .map_err(|e| JmixError::Cryptography(
-                crate::error::CryptographyError::InvalidKey(
-                    format!("Invalid Ed25519 public key: {}", e)
-                )
-            ))?)
+        Ok(VerifyingKey::from_bytes(&key_array).map_err(|e| {
+            JmixError::Cryptography(crate::error::CryptographyError::InvalidKey(format!(
+                "Invalid Ed25519 public key: {}",
+                e
+            )))
+        })?)
     }
 }
 
@@ -289,13 +284,13 @@ mod tests {
     fn test_sign_and_verify() {
         let manager = JwsManager::with_generated_key().unwrap();
         let verifying_key = manager.verifying_key().unwrap();
-        
+
         let payload = r#"{"test": "data", "number": 42}"#;
         let jws = manager.sign_json(payload).unwrap();
-        
+
         // JWS should have 3 parts separated by dots
         assert_eq!(jws.split('.').count(), 3);
-        
+
         // Verify the signature
         let verified_payload = JwsManager::verify_jws(&jws, &verifying_key).unwrap();
         assert_eq!(verified_payload, payload);
@@ -313,15 +308,15 @@ mod tests {
         // Files should exist after generation
         assert!(private_key_path.exists());
         assert!(public_key_path.exists());
-        
+
         // Keys should be 32 bytes each
         assert_eq!(fs::read(&private_key_path).unwrap().len(), 32);
         assert_eq!(fs::read(&public_key_path).unwrap().len(), 32);
-        
+
         // Should be able to load the key back
         let loaded_manager = JwsManager::with_key_file(&private_key_path).unwrap();
         let loaded_public_key = JwsManager::load_public_key(&public_key_path).unwrap();
-        
+
         // Should be able to sign and verify with loaded keys
         let payload = r#"{"loaded": "test"}"#;
         let jws = loaded_manager.sign_json(payload).unwrap();
@@ -333,11 +328,11 @@ mod tests {
     fn test_invalid_jws_format() {
         let manager = JwsManager::with_generated_key().unwrap();
         let verifying_key = manager.verifying_key().unwrap();
-        
+
         // Invalid JWS - wrong number of parts
         let result = JwsManager::verify_jws("invalid.jws", &verifying_key);
         assert!(result.is_err());
-        
+
         // Invalid JWS - empty
         let result = JwsManager::verify_jws("", &verifying_key);
         assert!(result.is_err());

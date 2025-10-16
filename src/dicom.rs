@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::error::{JmixError, JmixResult};
 use crate::types::Series;
-use dicom_object::{open_file, DefaultDicomObject};
 use dicom_dictionary_std::tags;
+use dicom_object::{open_file, DefaultDicomObject};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -38,11 +38,12 @@ impl DicomProcessor {
         config: Option<&Config>,
     ) -> JmixResult<DicomMetadata> {
         let dicom_files = self.find_dicom_files(&dicom_path)?;
-        
+
         if dicom_files.is_empty() {
-            return Err(JmixError::Dicom(
-                format!("No DICOM files found in: {}", dicom_path.as_ref().display())
-            ));
+            return Err(JmixError::Dicom(format!(
+                "No DICOM files found in: {}",
+                dicom_path.as_ref().display()
+            )));
         }
 
         let mut metadata = DicomMetadata::default();
@@ -52,14 +53,19 @@ impl DicomProcessor {
             match self.process_dicom_file(file_path, config) {
                 Ok(file_metadata) => {
                     metadata = self.merge_metadata(metadata, file_metadata);
-                    
+
                     // Update series information
                     if let Some(series_uid) = &metadata.study_uid {
-                        let series_key = format!("{}_{}", 
+                        let series_key = format!(
+                            "{}_{}",
                             series_uid,
-                            metadata.series.last().map(|s| &s.modality).unwrap_or(&"UNKNOWN".to_string())
+                            metadata
+                                .series
+                                .last()
+                                .map(|s| &s.modality)
+                                .unwrap_or(&"UNKNOWN".to_string())
                         );
-                        
+
                         if let Some(existing_series) = series_map.get_mut(&series_key) {
                             if let Some(instance_count) = existing_series.instance_count.as_mut() {
                                 *instance_count += 1;
@@ -71,7 +77,11 @@ impl DicomProcessor {
                 }
                 Err(e) => {
                     // Log error but continue processing other files
-                    eprintln!("Warning: Failed to process DICOM file {}: {}", file_path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to process DICOM file {}: {}",
+                        file_path.display(),
+                        e
+                    );
                 }
             }
         }
@@ -214,7 +224,7 @@ impl DicomProcessor {
                 instance_count: Some(1),
             };
             metadata.series.push(series);
-            
+
             if modality_name != "UNKNOWN" && !metadata.modalities.contains(&modality_name) {
                 metadata.modalities.push(modality_name);
             }
@@ -232,7 +242,7 @@ impl DicomProcessor {
 
         let family = parts.get(0).unwrap_or(&"").trim();
         let given = parts.get(1).unwrap_or(&"").trim();
-        
+
         if family.is_empty() && given.is_empty() {
             return dicom_name.to_string();
         }
@@ -282,11 +292,13 @@ impl DicomProcessor {
                     if let Some(count) = existing_series.instance_count.as_mut() {
                         *count += new_series.instance_count.unwrap_or(1);
                     } else {
-                        existing_series.instance_count = Some(new_series.instance_count.unwrap_or(1));
+                        existing_series.instance_count =
+                            Some(new_series.instance_count.unwrap_or(1));
                     }
-                    
+
                     // Update other fields if they were empty
-                    if existing_series.modality.is_empty() || existing_series.modality == "UNKNOWN" {
+                    if existing_series.modality.is_empty() || existing_series.modality == "UNKNOWN"
+                    {
                         existing_series.modality = new_series.modality.clone();
                     }
                     if existing_series.body_part.is_none() {
@@ -337,13 +349,13 @@ impl Default for DicomProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs::File;
     use std::io::Write;
+    use tempfile::TempDir;
 
     #[test]
     fn test_dicom_processor_creation() {
-let _processor = DicomProcessor::new();
+        let _processor = DicomProcessor::new();
         // Just test that it creates successfully
     }
 
@@ -351,7 +363,7 @@ let _processor = DicomProcessor::new();
     fn test_is_dicom_file_with_magic_number() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("test.dcm");
-        
+
         // Create a file with DICOM magic number at offset 128
         let mut file = File::create(&file_path).expect("Failed to create file");
         let mut buffer = vec![0u8; 132];
@@ -360,7 +372,9 @@ let _processor = DicomProcessor::new();
         drop(file);
 
         let processor = DicomProcessor::new();
-        let result = processor.is_dicom_file(&file_path).expect("Failed to check file");
+        let result = processor
+            .is_dicom_file(&file_path)
+            .expect("Failed to check file");
         assert!(result, "File with DICM magic should be detected as DICOM");
     }
 
@@ -368,39 +382,39 @@ let _processor = DicomProcessor::new();
     fn test_is_dicom_file_by_extension() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("test.dcm");
-        
+
         // Create a file without DICM magic but with .dcm extension
         let mut file = File::create(&file_path).expect("Failed to create file");
-        file.write_all(b"not a real dicom file").expect("Failed to write file");
+        file.write_all(b"not a real dicom file")
+            .expect("Failed to write file");
         drop(file);
 
         let processor = DicomProcessor::new();
-        let result = processor.is_dicom_file(&file_path).expect("Failed to check file");
-        assert!(result, "File with .dcm extension should be detected as DICOM");
+        let result = processor
+            .is_dicom_file(&file_path)
+            .expect("Failed to check file");
+        assert!(
+            result,
+            "File with .dcm extension should be detected as DICOM"
+        );
     }
 
     #[test]
     fn test_format_dicom_person_name() {
         let processor = DicomProcessor::new();
-        
+
         // Test standard DICOM format: Family^Given
         assert_eq!(
             processor.format_dicom_person_name("Smith^John"),
             "Smith, John"
         );
-        
+
         // Test with only family name
-        assert_eq!(
-            processor.format_dicom_person_name("Smith^"),
-            "Smith"
-        );
-        
+        assert_eq!(processor.format_dicom_person_name("Smith^"), "Smith");
+
         // Test with only given name
-        assert_eq!(
-            processor.format_dicom_person_name("^John"),
-            "John"
-        );
-        
+        assert_eq!(processor.format_dicom_person_name("^John"), "John");
+
         // Test with no separators
         assert_eq!(
             processor.format_dicom_person_name("John Smith"),
@@ -411,30 +425,21 @@ let _processor = DicomProcessor::new();
     #[test]
     fn test_format_dicom_date() {
         let processor = DicomProcessor::new();
-        
+
         // Test valid DICOM date
-        assert_eq!(
-            processor.format_dicom_date("19850214"),
-            "1985-02-14"
-        );
-        
+        assert_eq!(processor.format_dicom_date("19850214"), "1985-02-14");
+
         // Test invalid date (not 8 digits)
-        assert_eq!(
-            processor.format_dicom_date("1985-02-14"),
-            "1985-02-14"
-        );
-        
+        assert_eq!(processor.format_dicom_date("1985-02-14"), "1985-02-14");
+
         // Test with whitespace
-        assert_eq!(
-            processor.format_dicom_date(" 19850214 "),
-            "1985-02-14"
-        );
+        assert_eq!(processor.format_dicom_date(" 19850214 "), "1985-02-14");
     }
 
     #[test]
     fn test_fallback_metadata_from_config() {
         let processor = DicomProcessor::new();
-        
+
         let mut config = Config::default();
         config.patient.name = Some("Test Patient".to_string());
         config.patient.id = Some("PAT123".to_string());
@@ -442,7 +447,7 @@ let _processor = DicomProcessor::new();
         config.patient.sex = Some("M".to_string());
 
         let metadata = processor.fallback_metadata_from_config(Some(&config));
-        
+
         assert_eq!(metadata.patient_name, Some("Test Patient".to_string()));
         assert_eq!(metadata.patient_id, Some("PAT123".to_string()));
         assert_eq!(metadata.patient_dob, Some("1985-02-14".to_string()));
@@ -456,10 +461,10 @@ let _processor = DicomProcessor::new();
     fn test_process_empty_directory() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let processor = DicomProcessor::new();
-        
+
         let result = processor.process_dicom_folder(temp_dir.path(), None);
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
             JmixError::Dicom(msg) => assert!(msg.contains("No DICOM files found")),
             other => panic!("Expected DICOM error, got: {:?}", other),

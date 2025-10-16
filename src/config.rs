@@ -34,10 +34,7 @@ pub struct Entity {
 #[serde(untagged)]
 pub enum ContactInfo {
     Email(String),
-    Detailed {
-        system: String,
-        value: String,
-    },
+    Detailed { system: String, value: String },
 }
 
 /// Assertion configuration for cryptographic verification
@@ -103,10 +100,7 @@ pub struct ReportConfig {
 #[serde(untagged)]
 pub enum FileConfig {
     Path(String),
-    Detailed {
-        path: String,
-        name: Option<String>,
-    },
+    Detailed { path: String, name: Option<String> },
 }
 
 /// Consent configuration
@@ -174,7 +168,8 @@ pub struct ValidationConfig {
 
 impl Default for ValidationConfig {
     fn default() -> Self {
-        let schema_path = env::var("JMIX_SCHEMA_DIR").unwrap_or_else(|_| "../jmix/schemas".to_string());
+        let schema_path =
+            env::var("JMIX_SCHEMA_DIR").unwrap_or_else(|_| "../jmix/schemas".to_string());
         Self { schema_path }
     }
 }

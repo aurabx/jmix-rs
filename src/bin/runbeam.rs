@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 use jmix_rs::{validate_package, ValidationOptions};
+use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "runbeam", about = "Runbeam CLI - JMIX utilities")] 
+#[command(name = "runbeam", about = "Runbeam CLI - JMIX utilities")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -58,7 +58,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Validate { dir, validate_schema, schema_dir, verify_assertions, key, json } => {
+        Commands::Validate {
+            dir,
+            validate_schema,
+            schema_dir,
+            verify_assertions,
+            key,
+            json,
+        } => {
             let opts = ValidationOptions {
                 validate_schema,
                 schema_dir: schema_dir.map(|p| p.to_string_lossy().to_string()),
@@ -69,22 +76,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let report = validate_package(&dir, &opts)?;
 
             if json {
-                println!("{}", serde_json::to_string_pretty(&serde_json::json!({
-                    "schema_ok": report.schema_ok,
-                    "payload_hash_ok": report.payload_hash_ok,
-                    "assertions_ok": report.assertions_ok,
-                    "encryption_ok": report.encryption_ok,
-                    "errors": report.errors,
-                }))?);
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "schema_ok": report.schema_ok,
+                        "payload_hash_ok": report.payload_hash_ok,
+                        "assertions_ok": report.assertions_ok,
+                        "encryption_ok": report.encryption_ok,
+                        "errors": report.errors,
+                    }))?
+                );
             } else {
                 println!("Validation report for {}:", dir.display());
-                if let Some(v) = report.schema_ok { println!("  Schema: {}", if v { "ok" } else { "FAIL" }); }
-                if let Some(v) = report.payload_hash_ok { println!("  Payload hash: {}", if v { "ok" } else { "FAIL" }); }
-                if let Some(v) = report.assertions_ok { println!("  Assertions: {}", if v { "ok" } else { "FAIL" }); }
-                if let Some(v) = report.encryption_ok { println!("  Decryption: {}", if v { "ok" } else { "FAIL" }); }
+                if let Some(v) = report.schema_ok {
+                    println!("  Schema: {}", if v { "ok" } else { "FAIL" });
+                }
+                if let Some(v) = report.payload_hash_ok {
+                    println!("  Payload hash: {}", if v { "ok" } else { "FAIL" });
+                }
+                if let Some(v) = report.assertions_ok {
+                    println!("  Assertions: {}", if v { "ok" } else { "FAIL" });
+                }
+                if let Some(v) = report.encryption_ok {
+                    println!("  Decryption: {}", if v { "ok" } else { "FAIL" });
+                }
                 if !report.errors.is_empty() {
                     println!("  Errors:");
-                    for e in report.errors { println!("    - {}", e); }
+                    for e in report.errors {
+                        println!("    - {}", e);
+                    }
                 }
             }
         }
@@ -100,7 +120,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let enc = manifest
                 .get("security")
                 .and_then(|s| s.get("encryption"))
-                .ok_or_else(|| format!("No encryption info found in {}", manifest_path.display()))?;
+                .ok_or_else(|| {
+                    format!("No encryption info found in {}", manifest_path.display())
+                })?;
             let enc_info: jmix_rs::types::EncryptionInfo = serde_json::from_value(enc.clone())?;
 
             // Read encrypted payload
@@ -108,11 +130,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let ciphertext = fs::read(&payload_enc_path)?;
 
             // Decrypt
-            let dec = DecryptionManager::from_secret_key_file(&key)
-                .map_err(|e| jmix_rs::error::JmixError::Other(format!("Failed to create decryption manager: {}", e)))?;
-            let plaintext_tar = dec
-                .decrypt(&ciphertext, &enc_info)
-                .map_err(|e| jmix_rs::error::JmixError::Other(format!("Decryption failed: {}", e)))?;
+            let dec = DecryptionManager::from_secret_key_file(&key).map_err(|e| {
+                jmix_rs::error::JmixError::Other(format!(
+                    "Failed to create decryption manager: {}",
+                    e
+                ))
+            })?;
+            let plaintext_tar = dec.decrypt(&ciphertext, &enc_info).map_err(|e| {
+                jmix_rs::error::JmixError::Other(format!("Decryption failed: {}", e))
+            })?;
 
             // Extract
             fs::create_dir_all(&out)?;
@@ -120,10 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut archive = tar::Archive::new(cursor);
             archive.unpack(&out)?;
 
-            println!(
-                "Decrypted payload extracted to {}",
-                out.display()
-            );
+            println!("Decrypted payload extracted to {}", out.display());
         }
     }
 

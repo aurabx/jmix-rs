@@ -14,7 +14,7 @@ pub enum JmixError {
 
     #[error("Cryptography error: {0}")]
     Cryptography(#[from] CryptographyError),
-    
+
     #[error("Encryption error: {0}")]
     Encryption(#[from] crate::encryption::EncryptionError),
 
@@ -26,7 +26,7 @@ pub enum JmixError {
 
     #[error("JMIX error: {0}")]
     General(String),
-    
+
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -38,10 +38,7 @@ pub enum ValidationError {
     SchemaNotFound { path: String },
 
     #[error("Schema validation failed for {schema}: {errors:?}")]
-    SchemaValidation {
-        schema: String,
-        errors: Vec<String>,
-    },
+    SchemaValidation { schema: String, errors: Vec<String> },
 
     #[error("Invalid JSON schema: {0}")]
     InvalidSchema(String),

@@ -351,10 +351,13 @@ mod tests {
 
         // Test deserialization from JSON
         let deserialized: Envelope = serde_json::from_str(&json).expect("Failed to deserialize");
-        
+
         // Basic validation that key fields match
         assert_eq!(envelope.manifest.id, deserialized.manifest.id);
-        assert_eq!(envelope.metadata.patient.id, deserialized.metadata.patient.id);
+        assert_eq!(
+            envelope.metadata.patient.id,
+            deserialized.metadata.patient.id
+        );
         assert_eq!(envelope.audit.audit.len(), deserialized.audit.audit.len());
     }
 

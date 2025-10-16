@@ -8,7 +8,7 @@ use crate::{
     types::*,
     validation::SchemaValidator,
 };
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -44,17 +44,19 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with custom schema path
     pub fn with_schema_path<P: AsRef<Path>>(schema_path: P) -> JmixResult<Self> {
         Ok(Self {
-            validator: Some(SchemaValidator::new(Some(schema_path.as_ref().to_string_lossy().to_string()))),
+            validator: Some(SchemaValidator::new(Some(
+                schema_path.as_ref().to_string_lossy().to_string(),
+            ))),
             jws_manager: None,
             encryption_manager: None,
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with JWS signing enabled (generated key)
     pub fn with_signing() -> JmixResult<Self> {
         Ok(Self {
@@ -64,7 +66,7 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with JWS signing using a key file
     pub fn with_signing_key<P: AsRef<Path>>(key_path: P) -> JmixResult<Self> {
         Ok(Self {
@@ -84,11 +86,13 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with encryption enabled using recipient's public key
     pub fn with_encryption(recipient_public_key_b64: &str) -> JmixResult<Self> {
-        let encryption_manager = EncryptionManager::from_base64_public_key(recipient_public_key_b64)
-            .map_err(|e| JmixError::Other(format!("Failed to create encryption manager: {}", e)))?;
+        let encryption_manager =
+            EncryptionManager::from_base64_public_key(recipient_public_key_b64).map_err(|e| {
+                JmixError::Other(format!("Failed to create encryption manager: {}", e))
+            })?;
         Ok(Self {
             validator: None,
             jws_manager: None,
@@ -96,9 +100,11 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with encryption enabled using recipient's public key file
-    pub fn with_encryption_key_file<P: AsRef<Path>>(recipient_public_key_path: P) -> JmixResult<Self> {
+    pub fn with_encryption_key_file<P: AsRef<Path>>(
+        recipient_public_key_path: P,
+    ) -> JmixResult<Self> {
         let encryption_manager = EncryptionManager::from_public_key_file(recipient_public_key_path)
             .map_err(|e| JmixError::Other(format!("Failed to create encryption manager: {}", e)))?;
         Ok(Self {
@@ -108,11 +114,13 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with encryption and signing enabled
     pub fn with_encryption_and_signing(recipient_public_key_b64: &str) -> JmixResult<Self> {
-        let encryption_manager = EncryptionManager::from_base64_public_key(recipient_public_key_b64)
-            .map_err(|e| JmixError::Other(format!("Failed to create encryption manager: {}", e)))?;
+        let encryption_manager =
+            EncryptionManager::from_base64_public_key(recipient_public_key_b64).map_err(|e| {
+                JmixError::Other(format!("Failed to create encryption manager: {}", e))
+            })?;
         Ok(Self {
             validator: None,
             jws_manager: Some(JwsManager::with_generated_key()?),
@@ -120,11 +128,13 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with full features: validation, encryption, and signing
     pub fn with_full_security(recipient_public_key_b64: &str) -> JmixResult<Self> {
-        let encryption_manager = EncryptionManager::from_base64_public_key(recipient_public_key_b64)
-            .map_err(|e| JmixError::Other(format!("Failed to create encryption manager: {}", e)))?;
+        let encryption_manager =
+            EncryptionManager::from_base64_public_key(recipient_public_key_b64).map_err(|e| {
+                JmixError::Other(format!("Failed to create encryption manager: {}", e))
+            })?;
         Ok(Self {
             validator: Some(SchemaValidator::with_default_config()),
             jws_manager: Some(JwsManager::with_generated_key()?),
@@ -132,7 +142,7 @@ impl JmixBuilder {
             assertion_manager: None,
         })
     }
-    
+
     /// Create a new JMIX builder with assertions enabled
     pub fn with_assertions() -> JmixResult<Self> {
         Ok(Self {
@@ -142,7 +152,7 @@ impl JmixBuilder {
             assertion_manager: Some(AssertionManager::with_generated_key()?),
         })
     }
-    
+
     /// Create a new JMIX builder with signing and assertions enabled
     pub fn with_signing_and_assertions() -> JmixResult<Self> {
         // For now, use separate key managers. In a real implementation,
@@ -154,11 +164,13 @@ impl JmixBuilder {
             assertion_manager: Some(AssertionManager::with_generated_key()?),
         })
     }
-    
+
     /// Create a new JMIX builder with complete security: encryption, signing, and assertions
     pub fn with_complete_security(recipient_public_key_b64: &str) -> JmixResult<Self> {
-        let encryption_manager = EncryptionManager::from_base64_public_key(recipient_public_key_b64)
-            .map_err(|e| JmixError::Other(format!("Failed to create encryption manager: {}", e)))?;
+        let encryption_manager =
+            EncryptionManager::from_base64_public_key(recipient_public_key_b64).map_err(|e| {
+                JmixError::Other(format!("Failed to create encryption manager: {}", e))
+            })?;
         Ok(Self {
             validator: Some(SchemaValidator::with_default_config()),
             jws_manager: Some(JwsManager::with_generated_key()?),
@@ -224,7 +236,7 @@ impl JmixBuilder {
             self.save_unencrypted_envelope(envelope, dicom_files, output_dir)
         }
     }
-    
+
     /// Save unencrypted envelope (original behavior)
     fn save_unencrypted_envelope<P: AsRef<Path>>(
         &self,
@@ -233,7 +245,7 @@ impl JmixBuilder {
         output_dir: P,
     ) -> JmixResult<Vec<PathBuf>> {
         let base_dir = output_dir.as_ref();
-        
+
         // Create JMIX envelope directory: <id>.jmix
         let envelope_dir = base_dir.join(format!("{}.jmix", envelope.manifest.id));
         if !envelope_dir.exists() {
@@ -258,15 +270,14 @@ impl JmixBuilder {
 
         // Save audit.json at root level
         let audit_path = envelope_dir.join("audit.json");
-        let audit_json = serde_json::to_string_pretty(&envelope.audit)
-            .map_err(|e| JmixError::Json(e))?;
+        let audit_json = serde_json::to_string_pretty(&envelope.audit).map_err(JmixError::Json)?;
         fs::write(&audit_path, audit_json)?;
         saved_files.push(audit_path);
 
         // Save metadata.json in payload/
         let metadata_path = payload_dir.join("metadata.json");
-        let metadata_json = serde_json::to_string_pretty(&envelope.metadata)
-            .map_err(|e| JmixError::Json(e))?;
+        let metadata_json =
+            serde_json::to_string_pretty(&envelope.metadata).map_err(JmixError::Json)?;
         fs::write(&metadata_path, metadata_json)?;
         saved_files.push(metadata_path.clone());
 
@@ -278,7 +289,7 @@ impl JmixBuilder {
             metadata_entry.hash = self.sha256_file(&metadata_path).ok();
             metadata_entry.size_bytes = fs::metadata(&metadata_path).ok().map(|m| m.len() as i64);
         }
-        
+
         let files_path = payload_dir.join("files.json");
         let files_json = serde_json::to_string_pretty(&files)
             .map_err(|e| JmixError::Json(e))?;
@@ -298,7 +309,7 @@ impl JmixBuilder {
                 }
             }
         }
-        
+
         if !dicom_files.is_empty() {
             println!("     ✓ Copied {} DICOM files to payload/dicom/", dicom_files.len());
         }
@@ -350,33 +361,32 @@ impl JmixBuilder {
     ) -> JmixResult<Vec<PathBuf>> {
         let encryption_manager = self.encryption_manager.as_ref()
             .ok_or_else(|| JmixError::Other("Encryption manager not configured".to_string()))?;
-        
+
         let base_dir = output_dir.as_ref();
-        
+
         // Create JMIX envelope directory: <id>.jmix
         let envelope_dir = base_dir.join(format!("{}.jmix", envelope.manifest.id));
         if !envelope_dir.exists() {
             fs::create_dir_all(&envelope_dir)?;
         }
-        
+
         let mut saved_files = Vec::new();
-        
+
         // First, create the payload in memory/temp location
         let temp_payload_dir = tempfile::tempdir()
             .map_err(|e| JmixError::Other(format!("Failed to create temp dir: {}", e)))?;
-        
         let payload_temp = temp_payload_dir.path();
         let dicom_temp = payload_temp.join("dicom");
         let files_temp = payload_temp.join("files");
         fs::create_dir_all(&dicom_temp)?;
         fs::create_dir_all(&files_temp)?;
-        
+
         // Save metadata.json to temp payload
         let metadata_path = payload_temp.join("metadata.json");
         let metadata_json = serde_json::to_string_pretty(&envelope.metadata)
             .map_err(|e| JmixError::Json(e))?;
         fs::write(&metadata_path, metadata_json)?;
-        
+
         // Create and save files.json in temp payload
         let mut files_manifest = self.create_files_manifest(&envelope, dicom_files)?;
         
@@ -385,12 +395,12 @@ impl JmixBuilder {
             metadata_entry.hash = self.sha256_file(&metadata_path).ok();
             metadata_entry.size_bytes = fs::metadata(&metadata_path).ok().map(|m| m.len() as i64);
         }
-        
+
         let files_path = payload_temp.join("files.json");
         let files_json = serde_json::to_string_pretty(&files_manifest)
             .map_err(|e| JmixError::Json(e))?;
         fs::write(&files_path, files_json)?;
-        
+
         // Copy DICOM files to temp payload
         for source_path in dicom_files {
             if let Some(file_name) = source_path.file_name() {
@@ -398,11 +408,11 @@ impl JmixBuilder {
                 fs::copy(source_path, &dest_path)?;
             }
         }
-        
+
         // Create TAR archive of the payload directory
         let payload_tar_path = envelope_dir.join("payload.tar");
         self.create_tar_archive(payload_temp, &payload_tar_path)?;
-        
+
         // Read the TAR archive to encrypt it
         let payload_data = fs::read(&payload_tar_path)?;
         
@@ -412,27 +422,26 @@ impl JmixBuilder {
         // Encrypt the payload
         let encryption_result = encryption_manager.encrypt(&payload_data)
             .map_err(|e| JmixError::Other(format!("Encryption failed: {}", e)))?;
-        
+
         // Write encrypted payload
         let encrypted_payload_path = envelope_dir.join("payload.enc");
         fs::write(&encrypted_payload_path, &encryption_result.ciphertext)?;
         saved_files.push(encrypted_payload_path);
-        
+
         // Remove unencrypted TAR file
         let _ = fs::remove_file(&payload_tar_path);
-        
+
         // Create updated manifest with encryption info and payload hash
         let mut updated_envelope = envelope.clone();
         updated_envelope.manifest.security.encryption = Some(encryption_result.info);
         updated_envelope.manifest.security.payload_hash = payload_hash;
-        
         // Save manifest.json with encryption info
         let manifest_path = envelope_dir.join("manifest.json");
         let manifest_json = serde_json::to_string_pretty(&updated_envelope.manifest)
             .map_err(|e| JmixError::Json(e))?;
         fs::write(&manifest_path, &manifest_json)?;
         saved_files.push(manifest_path);
-        
+
         // Generate manifest.jws if signing is enabled
         if let Some(jws_manager) = &self.jws_manager {
             let jws = jws_manager.sign_json(&manifest_json)?;
@@ -441,14 +450,14 @@ impl JmixBuilder {
             saved_files.push(jws_path);
             println!("     ✓ Generated manifest.jws signature");
         }
-        
+
         // Save audit.json (unencrypted)
         let audit_path = envelope_dir.join("audit.json");
         let audit_json = serde_json::to_string_pretty(&envelope.audit)
             .map_err(|e| JmixError::Json(e))?;
         fs::write(&audit_path, audit_json)?;
         saved_files.push(audit_path);
-        
+
         // Create README for encrypted envelope
         let readme_path = envelope_dir.join("README.md");
         let readme_content = format!(
@@ -463,10 +472,10 @@ impl JmixBuilder {
         if !dicom_files.is_empty() {
             println!("     ✓ Encrypted {} DICOM files in payload", dicom_files.len());
         }
-        
+
         Ok(saved_files)
     }
-    
+
     /// Create a TAR archive from a directory
     fn create_tar_archive<P: AsRef<Path>, Q: AsRef<Path>>(
         &self,
@@ -474,14 +483,14 @@ impl JmixBuilder {
         output_path: Q,
     ) -> JmixResult<()> {
         use tar::Builder;
-        
+
         let tar_file = fs::File::create(&output_path)?;
         let mut tar_builder = Builder::new(tar_file);
-        
+
         // Add all files from the source directory recursively
         tar_builder.append_dir_all(".", &source_dir)?;
         tar_builder.finish()?;
-        
+
         Ok(())
     }
 
@@ -494,7 +503,7 @@ impl JmixBuilder {
     ) -> JmixResult<Manifest> {
         self.create_manifest_with_encryption(config, envelope_id, timestamp, None)
     }
-    
+
     /// Create manifest with optional encryption info
     fn create_manifest_with_encryption(
         &self,
@@ -504,8 +513,9 @@ impl JmixBuilder {
         encryption_info: Option<EncryptionInfo>,
     ) -> JmixResult<Manifest> {
         // Create a preliminary manifest for assertion generation
-        let mut preliminary_manifest = self.create_preliminary_manifest(config, envelope_id, timestamp, encryption_info)?;
-        
+        let mut preliminary_manifest =
+            self.create_preliminary_manifest(config, envelope_id, timestamp, encryption_info)?;
+
         // Generate assertions if assertion manager is present
         if let Some(assertion_manager) = &self.assertion_manager {
             // Generate sender assertion
@@ -517,7 +527,7 @@ impl JmixBuilder {
                 None, // No directory attestation for now
             )?;
             preliminary_manifest.sender.assertion = Some(sender_assertion_result.assertion);
-            
+
             // Generate requester assertion if requester exists
             if preliminary_manifest.requester.is_some() {
                 // Clone the requester to avoid borrowing issues
@@ -529,7 +539,8 @@ impl JmixBuilder {
                     None, // No key reference
                     None, // No directory attestation
                 )?;
-                preliminary_manifest.requester.as_mut().unwrap().assertion = Some(requester_assertion_result.assertion);
+                preliminary_manifest.requester.as_mut().unwrap().assertion =
+                    Some(requester_assertion_result.assertion);
             }
 
             // Generate receiver assertions for each receiver
@@ -547,10 +558,10 @@ impl JmixBuilder {
                 }
             }
         }
-        
+
         Ok(preliminary_manifest)
     }
-    
+
     /// Create preliminary manifest without assertions
     fn create_preliminary_manifest(
         &self,
@@ -607,7 +618,10 @@ impl JmixBuilder {
         };
 
         // Create extensions
-        let extensions = if config.custom_tags.is_some() || config.consent.is_some() || config.deid_keys.is_some() {
+        let extensions = if config.custom_tags.is_some()
+            || config.consent.is_some()
+            || config.deid_keys.is_some()
+        {
             Some(Extensions {
                 custom_tags: config.custom_tags.clone(),
                 consent: config.consent.as_ref().map(|c| ConsentExtension {
@@ -650,7 +664,7 @@ impl JmixBuilder {
             .patient_name
             .as_ref()
             .or(config.patient.name.as_ref());
-        
+
         let human_name = if let Some(name) = patient_name {
             // Parse name if it contains a comma (DICOM format: "Family, Given")
             if name.contains(',') {
@@ -658,7 +672,11 @@ impl JmixBuilder {
                 let family = parts[0].trim();
                 let given = parts.get(1).map(|g| vec![g.trim().to_string()]);
                 Some(HumanName {
-                    family: if family.is_empty() { None } else { Some(family.to_string()) },
+                    family: if family.is_empty() {
+                        None
+                    } else {
+                        Some(family.to_string())
+                    },
                     given,
                     prefix: None,
                     suffix: None,
@@ -705,7 +723,10 @@ impl JmixBuilder {
             }),
             verification: config.patient.verification.as_ref().map(|v| Verification {
                 verified_by: Some(v.method.clone()),
-                verified_on: v.timestamp.as_ref().map(|ts| ts.split('T').next().unwrap_or(ts).to_string()),
+                verified_on: v
+                    .timestamp
+                    .as_ref()
+                    .map(|ts| ts.split('T').next().unwrap_or(ts).to_string()),
             }),
         };
 
@@ -726,7 +747,10 @@ impl JmixBuilder {
         });
 
         // Create extensions (same as manifest)
-        let extensions = if config.custom_tags.is_some() || config.consent.is_some() || config.deid_keys.is_some() {
+        let extensions = if config.custom_tags.is_some()
+            || config.consent.is_some()
+            || config.deid_keys.is_some()
+        {
             Some(Extensions {
                 custom_tags: config.custom_tags.clone(),
                 consent: config.consent.as_ref().map(|c| ConsentExtension {
@@ -819,7 +843,7 @@ impl JmixBuilder {
         
         Ok(dicom_files)
     }
-    
+
     /// Calculate SHA256 hash of a file
     fn sha256_file<P: AsRef<Path>>(&self, file_path: P) -> JmixResult<String> {
         let mut file = fs::File::open(&file_path)?;
@@ -858,7 +882,9 @@ impl JmixBuilder {
         paths.sort_by(|a, b| {
             let ra = a.strip_prefix(payload_dir).unwrap_or(a);
             let rb = b.strip_prefix(payload_dir).unwrap_or(b);
-            ra.as_os_str().to_string_lossy().cmp(&rb.as_os_str().to_string_lossy())
+            ra.as_os_str()
+                .to_string_lossy()
+                .cmp(&rb.as_os_str().to_string_lossy())
         });
 
         let mut hasher = Sha256::new();
@@ -866,20 +892,20 @@ impl JmixBuilder {
             let rel = abs_path.strip_prefix(payload_dir).unwrap_or(&abs_path);
             let rel_str = rel.as_os_str().to_string_lossy();
             hasher.update(rel_str.as_bytes());
-            hasher.update(&[b'\n']);
+            hasher.update(b"\n");
             let mut file = fs::File::open(&abs_path)?;
             io::copy(&mut file, &mut hasher)?;
         }
         let hash = hasher.finalize();
         Ok(format!("sha256:{:x}", hash))
     }
-    
+
     /// Check if a file is a DICOM file (simplified version of processor logic)
     fn is_dicom_file<P: AsRef<Path>>(&self, file_path: P) -> JmixResult<bool> {
         use dicom_object::open_file;
-        
+
         // First try to parse with dicom-rs
-        if let Ok(_) = open_file(&file_path) {
+        if open_file(&file_path).is_ok() {
             return Ok(true);
         }
 
@@ -937,7 +963,7 @@ impl JmixBuilder {
                 } else {
                     format!("files/{}", report_file.trim_start_matches("files/"))
                 };
-                
+
                 let _report_abs = std::path::Path::new(&file_path);
                 let hash = None; // unknown until we copy it; currently we don't copy report
                 files.push(FileEntry {
@@ -991,12 +1017,19 @@ mod tests {
         let tmp = TempDir::new().expect("tempdir");
         let dicom_dir = tmp.path().join("dicom");
         std::fs::create_dir_all(&dicom_dir).unwrap();
-        std::fs::write(dicom_dir.join("img.dcm"), b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM").unwrap();
+        std::fs::write(
+            dicom_dir.join("img.dcm"),
+            b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxDICM",
+        )
+        .unwrap();
 
         let builder = JmixBuilder::with_assertions().expect("builder");
         let (envelope, _files) = builder.build_from_dicom(&dicom_dir, &cfg).expect("build");
         assert!(!envelope.manifest.receiver.is_empty());
-        assert!(envelope.manifest.receiver[0].assertion.is_some(), "receiver[0] should have an assertion");
+        assert!(
+            envelope.manifest.receiver[0].assertion.is_some(),
+            "receiver[0] should have an assertion"
+        );
     }
 
     #[test]
@@ -1035,26 +1068,24 @@ mod tests {
         }
     }
 
-    #[test] 
+    #[test]
     fn test_save_to_files() {
         let builder = JmixBuilder::new();
         let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        
+
         // Create a minimal envelope for testing
         let envelope = create_test_envelope();
-        
+
         let result = builder.save_to_files(&envelope, &[], temp_dir.path());
         assert!(result.is_ok());
-        
+
         let saved_files = result.unwrap();
         assert_eq!(saved_files.len(), 5); // manifest, audit, metadata, files, README
-        
-        // Verify files were created
         for file_path in &saved_files {
             assert!(file_path.exists(), "File should exist: {:?}", file_path);
         }
-        
-        // Verify file names
+
+        // Verify the ZIP file name
         let file_names: Vec<String> = saved_files
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
@@ -1066,21 +1097,21 @@ mod tests {
         assert!(file_names.contains(&"files.json".to_string()));
         assert!(file_names.contains(&"README.md".to_string()));
     }
-    
-    #[test] 
+
+    #[test]
     fn test_builder_with_signing() {
         let builder = JmixBuilder::with_signing().unwrap();
         assert!(builder.validator.is_none());
         assert!(builder.jws_manager.is_some());
         assert!(builder.encryption_manager.is_none());
         assert!(builder.assertion_manager.is_none());
-        
+
         let temp_dir = TempDir::new().expect("Failed to create temp directory");
         let envelope = create_test_envelope();
-        
+
         let result = builder.save_to_files(&envelope, &[], temp_dir.path());
         assert!(result.is_ok());
-        
+
         let saved_files = result.unwrap();
         let file_names: Vec<String> = saved_files
             .iter()
@@ -1094,7 +1125,7 @@ mod tests {
 
     fn create_test_envelope() -> Envelope {
         // Create minimal test envelope
-        
+
         let manifest = Manifest {
             version: "1.0".to_string(),
             id: "test-id".to_string(),
@@ -1134,9 +1165,7 @@ mod tests {
             extensions: None,
         };
 
-        let audit = Audit {
-            audit: vec![],
-        };
+        let audit = Audit { audit: vec![] };
 
         Envelope {
             manifest,

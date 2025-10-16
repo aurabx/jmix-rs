@@ -14,13 +14,16 @@ pub mod dicom;
 pub mod encryption;
 pub mod error;
 pub mod jws;
+pub mod package_validation;
 pub mod types;
 pub mod validation;
-pub mod package_validation;
+
+#[cfg(test)]
+mod tests;
 
 pub use package_validation::{validate_package, ValidationOptions, ValidationReport};
 
 // Re-export commonly used types
 pub use config::Config;
 pub use error::{JmixError, JmixResult};
-pub use types::{Envelope, Manifest, Metadata, Audit};
+pub use types::{Audit, Envelope, Manifest, Metadata};
