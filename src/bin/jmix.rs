@@ -3,7 +3,7 @@ use jmix_rs::{validate_package, ValidationOptions};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "runbeam", about = "Runbeam CLI - JMIX utilities")]
+#[command(name = "jmix", about = "JMIX CLI - JMIX utilities")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

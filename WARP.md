@@ -13,13 +13,13 @@ cargo build
 cargo build --release
 
 # Run the CLI (validate JMIX packages)
-cargo run --bin runbeam -- validate ./tmp/<ENVELOPE_ID>.jmix
+cargo run --bin jmix -- validate ./tmp/<ENVELOPE_ID>.jmix
 
 # Run with specific options
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas --key ./tmp/recipient_secret.key --json
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas --key ./tmp/recipient_secret.key --json
 
 # Decrypt an encrypted JMIX payload
-cargo run --bin runbeam -- decrypt ./tmp/<id>.jmix --key ./tmp/recipient_secret.key --out ./tmp/decrypted
+cargo run --bin jmix -- decrypt ./tmp/<id>.jmix --key ./tmp/recipient_secret.key --out ./tmp/decrypted
 ```
 
 ### Examples
@@ -68,7 +68,7 @@ cargo doc --open
 ## High-Level Architecture
 
 ### Core Components
-This crate provides a **Rust library (jmix-rs)** and **CLI tool (runbeam)** for the JMIX (JSON Medical Interchange) format. The architecture centers around secure medical data exchange with cryptographic features.
+This crate provides a **Rust library (jmix-rs)** and **CLI tool (jmix)** for the JMIX (JSON Medical Interchange) format. The architecture centers around secure medical data exchange with cryptographic features.
 
 **Key Modules:**
 - `builder::JmixBuilder` - High-level API for creating JMIX envelopes with various security configurations

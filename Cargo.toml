@@ -41,5 +41,5 @@ clap = { version = "4.5", features = ["derive"] }
 zip = "0.6"
 
 [[bin]]
-name = "runbeam"
-path = "src/bin/runbeam.rs"
+name = "jmix"
+path = "src/bin/jmix.rs"

@@ -18,6 +18,10 @@ A Rust implementation of the JMIX (JSON Medical Interchange) format for secure m
 jmix-rs = "0.3.1"
 ```
 
+## Documentation
+
+You can find documentation at [https://docs.rs/jmix-rs/latest/jmix_rs/](https://docs.rs/jmix-rs/latest/jmix_rs/)
+
 ## Usage
 
 ### Basic JMIX Envelope
@@ -85,14 +89,14 @@ cargo run --example envelope_encryption
 cargo run --example sender_assertions
 ```
 
-## CLI (runbeam)
+## CLI (jmix)
 
 A small CLI is included to validate JMIX packages.
 
 Build and run:
 
 ```bash
-cargo run --bin runbeam -- validate ./tmp/<ENVELOPE_ID>.jmix
+cargo run --bin jmix -- validate ./tmp/<ENVELOPE_ID>.jmix
 ```
 
 Flags:
@@ -106,16 +110,16 @@ Examples:
 
 ```bash
 # Unencrypted package, no schema checks
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix
+cargo run --bin jmix -- validate ./tmp/<id>.jmix
 
 # Encrypted package: verify decryption + payload hash using secret key
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --key ./tmp/keys_encrypted_test/recipient_secret.key
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --key ./tmp/keys_encrypted_test/recipient_secret.key
 
 # With schema checks (requires schemas available)
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
 
 # JSON output
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --json
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --json
 ```
 
 ### Verifying assertions
@@ -125,7 +129,7 @@ To verify sender/requester/receiver assertions during validation, add `--verify-
 ```bash
 # Build your envelope with assertions (see examples/sender_assertions.rs for generation)
 # Then validate with assertion checks enabled
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --verify-assertions
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --verify-assertions
 ```
 
 ### Decrypting an encrypted package
@@ -133,7 +137,7 @@ cargo run --bin runbeam -- validate ./tmp/<id>.jmix --verify-assertions
 Extract the contents of `payload.enc` using the recipient's secret key:
 
 ```bash
-cargo run --bin runbeam -- decrypt ./tmp/<id>.jmix \
+cargo run --bin jmix -- decrypt ./tmp/<id>.jmix \
   --key ./tmp/keys_encrypted_test/recipient_secret.key \
   --out ./tmp/decrypted
 ```
@@ -212,11 +216,11 @@ To enable schema validation:
 CLI examples:
 ```bash
 # Use a specific schema directory
-cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
+cargo run --bin jmix -- validate ./tmp/<id>.jmix --validate-schema --schema-dir ../jmix/schemas
 
 # Or via environment variable (no flag needed)
 JMIX_SCHEMA_DIR=../jmix/schemas \
-  cargo run --bin runbeam -- validate ./tmp/<id>.jmix --validate-schema
+  cargo run --bin jmix -- validate ./tmp/<id>.jmix --validate-schema
 ```
 
 ### Error Handling
@@ -271,7 +275,7 @@ src/
 ├── assertion.rs            # Ed25519 identity assertions
 ├── package_validation.rs   # Package-level validation API (hash, schema, assertions, decrypt)
 ├── bin/
-│   └── runbeam.rs          # CLI: runbeam validate
+│   └── jmix.rs             # CLI: jmix validate
 └── error.rs                # Error handling
 
 examples/
@@ -317,4 +321,4 @@ cargo doc --open
 
 ## License
 
-This project matches the licensing of the original PHP implementation.
+This project is licenced under the Apache 2.0 Licence.
