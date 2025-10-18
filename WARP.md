@@ -137,7 +137,8 @@ The validation system expects schemas in `../jmix` directory by default (configu
 
 ## Reference Links
 
-- [README.md](./README.md) - Complete usage documentation and examples
+- [README.md](./README.md) - End-user CLI documentation and quick start
+- [Developer Guide](./docs/DEVELOPER.md) - Complete development documentation, library usage, and examples
 - [Performance Optimization Guide](./docs/performance_optimization.md) - Skip flags for large datasets
 - [Test Documentation](./tests/README.md) - Comprehensive testing guide
 - [CHANGELOG.md](./CHANGELOG.md) - Release history and changes
