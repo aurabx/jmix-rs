@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2025-10-18
+
+Highlights
+- RNG migration: replace rand_core/OsRng with getrandom for all randomness
+- Zip upgrade: bump zip crate to 6.0 and migrate to write::SimpleFileOptions
+
+Changed
+- Encryption: generate ephemeral X25519 keys using getrandom + x25519(secret, ...)
+  - Preserves AES-256-GCM format (ephemeral public key, IV, auth tag are base64 in manifest)
+- JWS: Ed25519 key generation uses getrandom
+- Dependencies: dicom-object and dicom-dictionary-std updated to 0.9
+- The incorrectly named binary "runbeam" has been renamed to "jmix"
+
+Notes
+- No JMIX manifest schema changes; existing packages remain compatible
+- No public API changes expected; if downstreams referenced rand_core types, migrate to internal RNG or pass raw keys
+
 ## [0.2.0] - 2025-10-04
 
 Highlights
