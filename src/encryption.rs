@@ -12,11 +12,11 @@ use aes_gcm::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use hkdf::Hkdf;
-use rand_core::{OsRng, RngCore};
+use getrandom::getrandom;
 use sha2::Sha256;
 use std::{fs, io::Write, path::Path};
 use thiserror::Error;
-use x25519_dalek::{x25519, EphemeralSecret, PublicKey};
+use x25519_dalek::{x25519, PublicKey};
 use zeroize::Zeroizing;
 
 /// Errors that can occur during encryption/decryption operations
@@ -115,15 +115,26 @@ impl EncryptionManager {
 
     /// Encrypt data using AES-256-GCM with ephemeral ECDH key agreement
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<EncryptionResult, EncryptionError> {
-        // Generate ephemeral keypair for this encryption
-        let ephemeral_secret = EphemeralSecret::random_from_rng(OsRng);
-        let ephemeral_public = PublicKey::from(&ephemeral_secret);
+        // Generate ephemeral X25519 secret bytes
+        let mut eph_secret = [0u8; 32];
+        getrandom(&mut eph_secret)
+            .map_err(|e| EncryptionError::RandomGeneration(e.to_string()))?;
 
-        // Perform ECDH key agreement
-        let shared_secret = ephemeral_secret.diffie_hellman(&self.recipient_public_key);
+        // Compute ephemeral public key: x25519(secret, base_point)
+        let mut base_point = [0u8; 32];
+        base_point[0] = 9;
+        let eph_public_bytes = x25519(eph_secret, base_point);
+        let ephemeral_public = PublicKey::from(eph_public_bytes);
+
+        // Perform ECDH key agreement: shared = x25519(secret, recipient_public)
+        let shared_secret_bytes = x25519(eph_secret, self.recipient_public_key.to_bytes());
+
+        // Zero ephemeral secret after use
+        let mut z = Zeroizing::new(eph_secret);
+        for b in z.iter_mut() { *b = 0; }
 
         // Derive symmetric key using HKDF-SHA256
-        let hkdf = Hkdf::<Sha256>::new(None, shared_secret.as_bytes());
+        let hkdf = Hkdf::<Sha256>::new(None, &shared_secret_bytes);
         let mut symmetric_key = [0u8; 32]; // AES-256 key
         hkdf.expand(b"JMIX-AES256-GCM", &mut symmetric_key)
             .map_err(|e| {
@@ -132,7 +143,7 @@ impl EncryptionManager {
 
         // Generate random IV (12 bytes for GCM)
         let mut iv = [0u8; 12];
-        OsRng.fill_bytes(&mut iv);
+        getrandom(&mut iv).map_err(|e| EncryptionError::RandomGeneration(e.to_string()))?;
 
         // Encrypt with AES-256-GCM
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&symmetric_key));
@@ -275,7 +286,7 @@ impl KeyPair {
     /// Generate a new random keypair for encryption
     pub fn generate() -> Self {
         let mut secret = [0u8; 32];
-        OsRng.fill_bytes(&mut secret);
+        getrandom(&mut secret).expect("OS RNG unavailable");
 
         // Note: We use manual base point multiplication here because x25519-dalek 2.0
         // doesn't expose secret key bytes from EphemeralSecret. In production code,

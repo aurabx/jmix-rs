@@ -19,7 +19,7 @@ Add to your `Cargo.toml`:
 
 ```toml path=null start=null
 [dependencies]
-jmix-rs = "0.3.1"
+jmix-rs = "0.3.2"
 ```
 
 ## Quick Start

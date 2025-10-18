@@ -1,7 +1,7 @@
 use crate::error::{JmixError, JmixResult};
 use base64::Engine;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand_core::{OsRng, RngCore};
+use getrandom::getrandom;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs;
@@ -43,7 +43,7 @@ impl JwsManager {
     /// Create a new JWS manager with a generated signing key
     pub fn with_generated_key() -> JmixResult<Self> {
         let mut secret_bytes = [0u8; 32];
-        OsRng.fill_bytes(&mut secret_bytes);
+        getrandom(&mut secret_bytes).expect("OS RNG unavailable");
         let signing_key = SigningKey::from_bytes(&secret_bytes);
         Ok(Self {
             signing_key: Some(signing_key),
@@ -89,7 +89,7 @@ impl JwsManager {
         public_key_path: P,
     ) -> JmixResult<Self> {
         let mut secret_bytes = [0u8; 32];
-        OsRng.fill_bytes(&mut secret_bytes);
+        getrandom(&mut secret_bytes).expect("OS RNG unavailable");
         let signing_key = SigningKey::from_bytes(&secret_bytes);
         let verifying_key = signing_key.verifying_key();
 
