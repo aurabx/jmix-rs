@@ -730,8 +730,7 @@ impl JmixBuilder {
         output_path: Q,
     ) -> JmixResult<()> {
         use std::io::{Cursor, Write};
-        use zip::write::SimpleFileOptions as ZipFileOptions;
-        use zip::ZipWriter;
+        use zip::write::{SimpleFileOptions as ZipFileOptions, ZipWriter};
 
         let source_dir = source_dir.as_ref();
         let output_path = output_path.as_ref();

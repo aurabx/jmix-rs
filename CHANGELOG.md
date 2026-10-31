@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2026-10-31
+
+Highlights
+- Security: bump the `zip` crate from 6.x to the patched 9.x line for GHSA-m665-v7pm-7grj / CVE-2026-115905
+
+Changed
+- Dependencies: `zip` is now `9.0.5` (Cargo range `>=9.0.5, <10`), with default features disabled and `deflate` kept for write-only JMIX ZIP creation
+- This crate only writes ZIP archives (`ZipWriter` / `SimpleFileOptions`); it does not extract untrusted archives
+
+Notes
+- First fixed `zip` version per the GHSA/OSV advisory is **9.0.5** (affected: `<= 9.0.4`). 9.1.3 is a later 9.x release, not the first patch.
+- Opt-in read-side hardening `ExtractOptions::enforce_header_consistency(true)` (added in zip 9.1.0) is not used here because jmix-rs does not extract ZIPs. Downstream extractors should enable it when they extract untrusted archives.
+- No public API changes. `zip` types are not re-exported.
+- `zip` 9.x requires Rust 1.88+.
+- aurabx/harmony and aurabx/prime still need a jmix-rs 0.3.3+ release (and their own `zip` pins updated) before the vulnerable transitive 6.x copy can be dropped.
+
 ## [0.3.2] - 2025-10-18
 
 Highlights
