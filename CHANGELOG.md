@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.3] - 2026-10-31
+## [0.3.3] - 2026-11-01
 
 Highlights
 - Security: bump the `zip` crate from 6.x to the patched 9.x line for GHSA-m665-v7pm-7grj / CVE-2026-115905
 
 Changed
-- Dependencies: `zip` is now `9.0.5` (Cargo range `>=9.0.5, <10`), with default features disabled and `deflate` kept for write-only JMIX ZIP creation
+- Dependencies: `zip` minimum is now `9.0.5` (Cargo range `>=9.0.5, <10`), with default features disabled. `deflate` is kept for write-only JMIX ZIP creation, and `time` is kept so entries carry the build time and not 1980-01-01
 - This crate only writes ZIP archives (`ZipWriter` / `SimpleFileOptions`); it does not extract untrusted archives
 
 Notes

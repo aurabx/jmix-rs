@@ -1359,6 +1359,24 @@ mod tests {
     use crate::config::{Config as BuildConfig, ContactInfo, Entity as CEntity};
     use tempfile::TempDir;
 
+    // zip falls back to 1980-01-01 when its `time` feature is off.
+    #[test]
+    fn test_zip_entries_carry_build_time() {
+        let source = TempDir::new().unwrap();
+        fs::write(source.path().join("manifest.json"), b"{}").unwrap();
+        let output = TempDir::new().unwrap();
+        let zip_path = output.path().join("package.zip");
+
+        JmixBuilder::new()
+            .create_zip_archive(source.path(), &zip_path)
+            .unwrap();
+
+        let mut archive = zip::ZipArchive::new(fs::File::open(&zip_path).unwrap()).unwrap();
+        let entry = archive.by_name("manifest.json").unwrap();
+        let year = entry.last_modified().unwrap().year();
+        assert!(year > 1980, "entry timestamp year was {year}");
+    }
+
     #[test]
     fn test_receivers_get_assertions_when_enabled() {
         // Prepare a minimal config with one receiver
